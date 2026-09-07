@@ -1,0 +1,188 @@
+<!-- Quick Link Modal (Create/Edit) -->
+<dialog 
+  id="quicklink-modal"
+  class="modal"
+  :class="{ 'modal-open': state.quickLinks.modalOpen }"
+  role="dialog"
+  aria-labelledby="quicklink-modal-title"
+  aria-modal="true"
+>
+  <div class="modal-box max-w-2xl" @click="closeIconDropdown">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <h3 id="quicklink-modal-title" class="text-lg font-bold">
+        {{ state.quickLinks.editMode ? 'Edit Quick Link' : 'Add Quick Link' }}
+      </h3>
+      <button 
+        class="btn btn-ghost btn-sm btn-circle"
+        @click="closeQuickLinkModal"
+        :disabled="state.quickLinks.saving"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Form -->
+    <form @submit.prevent="saveQuickLink" class="space-y-4">
+      
+      <!-- Name -->
+      <div>
+        <label class="label">
+          <span>Name <span class="text-error">*</span></span>
+        </label>
+        <input 
+          type="text"
+          v-model="state.quickLinks.form.name"
+          placeholder="Enter link name"
+          class="input w-full"
+          :class="{ 'input-error': state.quickLinks.formErrors.name }"
+          :disabled="state.quickLinks.saving"
+          required
+        />
+        <label v-if="state.quickLinks.formErrors.name" class="label">
+          <span class="text-xs text-error">{{ state.quickLinks.formErrors.name }}</span>
+        </label>
+      </div>
+
+      <!-- Link URL -->
+      <div>
+        <label class="label">
+          <span>URL <span class="text-error">*</span></span>
+        </label>
+        <input 
+          type="url"
+          v-model="state.quickLinks.form.link"
+          placeholder="https://example.com"
+          class="input w-full"
+          :class="{ 'input-error': state.quickLinks.formErrors.link }"
+          :disabled="state.quickLinks.saving"
+          required
+        />
+        <label v-if="state.quickLinks.formErrors.link" class="label">
+          <span class="text-xs text-error">{{ state.quickLinks.formErrors.link }}</span>
+        </label>
+      </div>
+
+      <!-- Category -->
+      <div>
+        <label class="label">
+          <span>Category <span class="text-error">*</span></span>
+        </label>
+        <div class="flex gap-2">
+          <select 
+            v-model="state.quickLinks.categorySelectValue"
+            @change="onQuickLinkCategoryChange"
+            class="select w-36 shrink-0"
+            :disabled="state.quickLinks.saving"
+          >
+            <option value="">Select...</option>
+            <option value="__new__">New Category...</option>
+            <option
+              v-if="state.quickLinks.categorySelectValue && state.quickLinks.categorySelectValue !== '__new__' && !quickLinksCategories.includes(state.quickLinks.categorySelectValue)"
+              :value="state.quickLinks.categorySelectValue"
+            >
+              {{ state.quickLinks.categorySelectValue }}
+            </option>
+            <option v-for="cat in quickLinksCategories" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+          <input 
+            type="text"
+            v-model="state.quickLinks.newCategory"
+            placeholder="New category name..."
+            class="input flex-1"
+            :class="(state.quickLinks.saving || state.quickLinks.categorySelectValue !== '__new__') ? 'opacity-50' : ''"
+            :disabled="state.quickLinks.saving || state.quickLinks.categorySelectValue !== '__new__'"
+          />
+        </div>
+        <label v-if="state.quickLinks.formErrors.category" class="label">
+          <span class="text-xs text-error">{{ state.quickLinks.formErrors.category }}</span>
+        </label>
+        <label class="label">
+          <span class="text-xs text-base-content/50">Group links by category for easier navigation</span>
+        </label>
+      </div>
+
+      <!-- Icon Picker -->
+      <div @click.stop>
+        <label class="label">
+          <span>Icon</span>
+        </label>
+        <div class="relative w-full" ref="iconPickerContainer">
+          <button
+            type="button"
+            class="btn btn-outline w-full justify-between"
+            :class="{ 'btn-disabled': state.quickLinks.saving, 'btn-active': state.quickLinks.iconDropdownOpen }"
+            @click="toggleIconDropdown"
+            ref="iconPickerButton"
+          >
+            <span class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-primary" v-html="getIconSvg(state.quickLinks.form.icon || 'link')"></svg>
+              </div>
+              <span class="whitespace-normal break-words">{{ QUICK_LINK_ICON_OPTIONS.find(i => i.value === state.quickLinks.form.icon)?.label || 'Select Icon' }}</span>
+            </span>
+            <svg v-if="!state.quickLinks.iconDropdownOpen" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 opacity-70">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 opacity-70">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+            </svg>
+          </button>
+        </div>
+        <label class="label">
+          <span class="text-xs text-base-content/50">Choose an icon to represent this link</span>
+        </label>
+      </div>
+
+      <!-- Error Message -->
+      <div v-if="state.quickLinks.saveError" class="alert alert-error">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>{{ state.quickLinks.saveError }}</span>
+      </div>
+
+      <!-- Actions -->
+      <div class="modal-action justify-between w-full">
+        <button
+          v-if="state.quickLinks.editMode"
+          type="button"
+          class="btn btn-error btn-outline gap-2"
+          @click="deleteQuickLinkFromModal"
+          :disabled="state.quickLinks.saving || state.confirm.busy"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+          </svg>
+          Delete
+        </button>
+
+        <div class="flex gap-2 justify-end">
+          <button 
+            type="button"
+            class="btn btn-ghost"
+            @click="closeQuickLinkModal"
+            :disabled="state.quickLinks.saving || state.confirm.busy"
+          >
+            Cancel
+          </button>
+          <button 
+            type="submit"
+            class="btn btn-primary"
+            :disabled="state.quickLinks.saving || state.confirm.busy"
+          >
+            <span v-if="state.quickLinks.saving" class="loading loading-spinner loading-sm"></span>
+            {{ state.quickLinks.saving ? 'Saving...' : (state.quickLinks.editMode ? 'Update' : 'Create') }}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+  
+  <!-- Click outside to close -->
+  <form method="dialog" class="modal-backdrop">
+    <button @click="closeQuickLinkModal" :disabled="state.quickLinks.saving">close</button>
+  </form>
+</dialog>

@@ -1,0 +1,2565 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_top">
+  <title><?= (appConfig && (appConfig.pageTitle || appConfig.name)) ? (appConfig.pageTitle || appConfig.name) : 'Web App' ?></title>
+  
+  <!-- Tailwind CSS 4 + DaisyUI 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  
+  <!-- Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <!-- Server-seeded config (used to prevent initial placeholder branding flashes) -->
+  <script id="server-app-config" type="application/json"><?= JSON.stringify(appConfig || {}) ?></script>
+  
+  <style>
+    body {
+      --ui-fade-duration: 200ms;
+      --ui-fade-scale: 0.96;
+      --ui-fade-y: 8px;
+
+      --toast-in-duration: 200ms;
+      --toast-out-duration: 180ms;
+      
+      /* Sidebar transition duration */
+      --sidebar-transition-duration: 300ms;
+
+      /* Sidebar internal fade duration */
+      --sidebar-fade-duration: 140ms;
+
+      /* Theme transition duration */
+      --theme-transition-duration: 260ms;
+
+      /* Settings tab fade duration */
+      --tab-fade-duration: 150ms;
+
+      /* Dynamic viewport height with fallback */
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    .animations-subtle {
+      --ui-fade-duration: 80ms;
+      --ui-fade-scale: 0.98;
+      --ui-fade-y: 4px;
+
+      --toast-in-duration: 80ms;
+      --toast-out-duration: 70ms;
+      
+      --sidebar-transition-duration: 150ms;
+      --sidebar-fade-duration: 80ms;
+      --theme-transition-duration: 150ms;
+      --tab-fade-duration: 90ms;
+    }
+
+    .animations-engaging {
+      --ui-fade-duration: 220ms;
+      --ui-fade-scale: 0.94;
+      --ui-fade-y: 10px;
+
+      --toast-in-duration: 240ms;
+      --toast-out-duration: 200ms;
+      
+      --sidebar-transition-duration: 350ms;
+      --sidebar-fade-duration: 160ms;
+      --theme-transition-duration: 260ms;
+      --tab-fade-duration: 150ms;
+    }
+
+    .no-animations {
+      --ui-fade-duration: 0ms;
+      --ui-fade-scale: 1;
+      --ui-fade-y: 0px;
+
+      --toast-in-duration: 0ms;
+      --toast-out-duration: 0ms;
+      
+      --sidebar-transition-duration: 0ms;
+      --sidebar-fade-duration: 0ms;
+      --theme-transition-duration: 0ms;
+      --tab-fade-duration: 0ms;
+    }
+
+    /* Custom animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .animate-fade-in {
+      animation: fadeIn var(--ui-fade-duration, 0.2s) ease-out;
+    }
+    
+    /* Animation intensity: Subtle (minimal, fast animations) */
+    .animations-subtle .animate-fade-in {
+      animation-duration: 0.1s;
+    }
+    
+    .animations-subtle .transition-all,
+    .animations-subtle .transition-opacity,
+    .animations-subtle .transition-shadow,
+    .animations-subtle [class*="transition-"] {
+      transition-duration: 0.08s !important;
+    }
+    
+    /* Animation intensity: Engaging (full, smooth animations) */
+    .animations-engaging .animate-fade-in {
+      animation-duration: 0.3s;
+    }
+    
+    .animations-engaging .transition-all,
+    .animations-engaging .transition-opacity,
+    .animations-engaging .transition-shadow,
+    .animations-engaging [class*="transition-"] {
+      transition-duration: 0.25s !important;
+    }
+    
+    .animations-engaging .card {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    
+    .animations-engaging .btn {
+      transition: all 0.15s ease-out !important;
+    }
+    
+    /* Animation intensity: Disabled */
+    .no-animations .animate-fade-in,
+    .no-animations [class*="animate-"] {
+      animation: none !important;
+    }
+    
+    .no-animations .transition-all,
+    .no-animations .transition-opacity,
+    .no-animations .transition-shadow,
+    .no-animations [class*="transition-"] {
+      transition: none !important;
+    }
+
+    /* DaisyUI components may animate without transition-* utility classes */
+    .no-animations .modal,
+    .no-animations .modal-box,
+    .no-animations .modal-backdrop,
+    .no-animations .modal::backdrop {
+      transition: none !important;
+      animation: none !important;
+    }
+
+    /* Disable drawer/overlay animations in no-animations mode (mobile sidebar) */
+    .no-animations .drawer-side,
+    .no-animations .drawer-overlay,
+    .no-animations .drawer-toggle ~ .drawer-side {
+      transition: none !important;
+      animation: none !important;
+    }
+
+    /* Disable view-swap transitions in no-animations mode */
+    .no-animations .view-swap-enter-active,
+    .no-animations .view-swap-leave-active {
+      transition: none !important;
+    }
+
+    .no-animations .view-swap-enter-from,
+    .no-animations .view-swap-leave-to,
+    .no-animations .view-swap-enter-to,
+    .no-animations .view-swap-leave-from {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+
+    /* Disable collapse/accordion animations in no-animations mode */
+    .no-animations .collapse,
+    .no-animations .collapse-content,
+    .no-animations .collapse-title {
+      transition: none !important;
+    }
+
+    .no-animations .collapse-content {
+      /* Override DaisyUI's grid-row animation */
+      transition: none !important;
+    }
+
+    .no-animations .loading {
+      animation: none !important;
+    }
+    
+    /* Toast animations (Vue transition-group: name="toast")
+       Use enter/leave transitions (not keyframes) to avoid a one-frame "flash"
+       where the element paints at the final state before the animation starts. */
+    .toast-enter-active,
+    .toast-leave-active {
+      will-change: transform, opacity;
+    }
+
+    .toast-enter-active {
+      transition:
+        transform var(--toast-in-duration) cubic-bezier(0.2, 0.8, 0.2, 1),
+        opacity var(--toast-in-duration) cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .toast-leave-active {
+      transition:
+        transform var(--toast-out-duration) ease-in,
+        opacity var(--toast-out-duration) ease-in;
+    }
+
+    .toast-enter-from,
+    .toast-leave-to {
+      transform: translateX(24px);
+      opacity: 0;
+    }
+
+    .toast-enter-to,
+    .toast-leave-from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    .toast-move {
+      transition: transform var(--toast-in-duration) ease;
+    }
+
+    /* Honor animationIntensity=disabled: no toast motion at all */
+    .no-animations .toast-enter-active,
+    .no-animations .toast-leave-active {
+      transition: none !important;
+    }
+
+    .no-animations .toast-move {
+      transition: none !important;
+    }
+
+    .no-animations .toast,
+    .no-animations .toast * {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    .no-animations .toast .alert {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+
+    /* Reusable compact badge styling (for icons + text) */
+    .app-badge-compact {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding-left: 0.65rem;
+      padding-right: 0.65rem;
+      font-size: 0.625rem;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+    
+    @media (min-width: 640px) {
+      .app-badge-compact {
+        gap: 0.5rem;
+        padding-left: 0.85rem;
+        padding-right: 0.85rem;
+        font-size: 0.875rem;
+      }
+    }
+
+    .app-badge-compact svg {
+      width: 0.75rem;
+      height: 0.75rem;
+      flex-shrink: 0;
+    }
+    
+    @media (min-width: 640px) {
+      .app-badge-compact svg {
+        width: 1rem;
+        height: 1rem;
+      }
+    }
+    
+    /* Modal animations */
+    .modal.modal-open .modal-box {
+      animation: modalSlideIn 0.25s ease-out;
+    }
+    
+    .animations-subtle .modal.modal-open .modal-box {
+      animation-duration: 0.1s;
+    }
+    
+    .animations-engaging .modal.modal-open .modal-box {
+      animation-duration: 0.35s;
+      animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    
+    .no-animations .modal.modal-open .modal-box {
+      animation: none;
+    }
+    
+    @keyframes modalSlideIn {
+      from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    
+    /* Loading bar animation */
+    .loading-bar {
+      transition: width 0.3s ease;
+    }
+    
+    /* Sidebar width transitions - uses CSS variable for animation intensity control */
+    .sidebar-aside {
+      transition: width var(--sidebar-transition-duration) cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Sidebar content fade gating during resize */
+    .sidebar-fade {
+      transition: opacity var(--sidebar-fade-duration) ease-out;
+    }
+
+    .sidebar-is-resizing .sidebar-fade {
+      opacity: 0;
+    }
+
+    /* Prevent unexpected outlines on footer across DaisyUI updates */
+    footer.footer {
+      outline: none;
+    }
+
+    /* Mobile drawer overlay fade transition (for close animation) */
+    .drawer-overlay {
+      transition: opacity var(--ui-fade-duration) ease;
+    }
+    
+    /* Settings tab content transition (replaces anime.js) */
+    .settings-tab-content {
+      transition: opacity var(--tab-fade-duration) ease-out;
+      will-change: opacity;
+    }
+
+    .settings-tab-content.tab-transitioning {
+      opacity: 0;
+    }
+
+    /* Theme transition overlay (replaces anime.js) */
+    .theme-transition-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--theme-transition-duration) ease;
+    }
+
+    .theme-transition-overlay.fade-in {
+      opacity: 1;
+    }
+    
+    /* Sidebar internal element transitions */
+    .sidebar-collapsed nav .sidebar-nav-item {
+      overflow: hidden;
+    }
+    
+    /* Sidebar menu - ensure full width */
+    .sidebar-menu {
+      width: 100%;
+    }
+    
+    .sidebar-menu > li {
+      width: 100%;
+    }
+    
+    /* Sidebar nav link styling */
+    .sidebar-nav-link {
+      width: 100%;
+      transition: all var(--sidebar-transition-duration) cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .sidebar-collapsed .sidebar-nav-link {
+      width: 3rem;
+      height: 3rem;
+      padding: 0;
+      margin: 0 auto;
+      justify-content: center;
+    }
+
+    /* Fix sidebar tooltip overflow */
+    .drawer-side {
+      overflow: visible !important;
+    }
+    .drawer-side > aside {
+      overflow: visible !important;
+    }
+    
+    /* 
+     * Disabled button color override
+     * When a button has a color modifier (text-error, text-warning, etc.) and is disabled,
+     * override the color to show the greyed-out disabled state properly.
+     * This is a reusable pattern that works for all buttons with color modifiers.
+     */
+    .btn:disabled,
+    .btn[disabled],
+    .btn.btn-disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    
+    .btn:disabled.text-error,
+    .btn:disabled.text-warning,
+    .btn:disabled.text-success,
+    .btn:disabled.text-info,
+    .btn:disabled.text-primary,
+    .btn:disabled.text-secondary,
+    .btn:disabled.text-accent,
+    .btn[disabled].text-error,
+    .btn[disabled].text-warning,
+    .btn[disabled].text-success,
+    .btn[disabled].text-info,
+    .btn[disabled].text-primary,
+    .btn[disabled].text-secondary,
+    .btn[disabled].text-accent,
+    .btn.btn-disabled.text-error,
+    .btn.btn-disabled.text-warning,
+    .btn.btn-disabled.text-success,
+    .btn.btn-disabled.text-info,
+    .btn.btn-disabled.text-primary,
+    .btn.btn-disabled.text-secondary,
+    .btn.btn-disabled.text-accent {
+      color: inherit !important;
+      opacity: 0.4;
+    }
+
+    /* Vue transition: Auth overlay fade */
+    .auth-overlay-fade-enter-active,
+    .auth-overlay-fade-leave-active {
+      transition: opacity var(--ui-fade-duration) ease;
+      will-change: opacity;
+    }
+
+    .auth-overlay-fade-enter-active #auth-card,
+    .auth-overlay-fade-leave-active #auth-card {
+      transition: transform var(--ui-fade-duration) cubic-bezier(0.2, 0.8, 0.2, 1);
+      will-change: transform;
+    }
+
+    .auth-overlay-fade-enter-from,
+    .auth-overlay-fade-leave-to {
+      opacity: 0;
+    }
+
+    .auth-overlay-fade-enter-from #auth-card,
+    .auth-overlay-fade-leave-to #auth-card {
+      transform: translateY(var(--ui-fade-y)) scale(var(--ui-fade-scale));
+    }
+
+    .auth-overlay-fade-enter-to #auth-card,
+    .auth-overlay-fade-leave-from #auth-card {
+      transform: translateY(0) scale(1);
+    }
+
+    .auth-overlay-fade-enter-to,
+    .auth-overlay-fade-leave-from {
+      opacity: 1;
+    }
+
+    /* Vue transition: Icon picker dropdown (Quick Links modal) */
+    .icon-picker-fade-enter-active,
+    .icon-picker-fade-leave-active {
+      transition: opacity var(--ui-fade-duration) ease,
+                  transform var(--ui-fade-duration) cubic-bezier(0.2, 0.8, 0.2, 1);
+      will-change: opacity, transform;
+    }
+
+    .icon-picker-fade-enter-from,
+    .icon-picker-fade-leave-to {
+      opacity: 0;
+      transform: translateY(var(--ui-fade-y)) scale(var(--ui-fade-scale));
+    }
+
+    .icon-picker-fade-enter-to,
+    .icon-picker-fade-leave-from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    /* Vue transition: View loading swap (content <-> spinner) */
+    .view-swap-enter-active,
+    .view-swap-leave-active {
+      transition: opacity var(--ui-fade-duration) ease,
+                  transform var(--ui-fade-duration) cubic-bezier(0.2, 0.8, 0.2, 1);
+      will-change: opacity, transform;
+    }
+
+    .view-swap-enter-from,
+    .view-swap-leave-to {
+      opacity: 0;
+      transform: translateY(var(--ui-fade-y)) scale(var(--ui-fade-scale));
+    }
+
+    .view-swap-enter-to,
+    .view-swap-leave-from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: var(--color-base-200);
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: color-mix(in oklab, var(--color-base-content) 20%, transparent);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: color-mix(in oklab, var(--color-base-content) 30%, transparent);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-base-100">
+  <div id="app">
+    
+    <!-- Auth Overlay -->
+    <?!= include('AuthOverlay'); ?>
+    
+    <!-- Main App (shown after authentication) -->
+    <div v-if="state.isAuthenticated" class="drawer lg:drawer-open">
+      <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" />
+      
+      <!-- Main Content -->
+      <div class="drawer-content flex flex-col min-h-[100vh] min-h-[100dvh]">
+        
+        <!-- Mobile Navbar -->
+        <div class="navbar bg-base-200 lg:hidden sticky top-0 z-30">
+          <div class="flex-none">
+            <label for="sidebar-drawer" class="btn btn-square btn-ghost drawer-button">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+              </svg>
+            </label>
+          </div>
+          <div class="flex-1">
+            <span class="text-lg font-bold text-primary">{{ APP_CONFIG.name }}</span>
+          </div>
+        </div>
+        
+        <!-- Page Content -->
+        <main class="flex-1 p-4 md:p-6 overflow-auto">
+          
+          <!-- Home View -->
+          <?!= include('Home'); ?>
+          
+          <!-- Quick Links View -->
+          <?!= include('QuickLinksView'); ?>
+
+          <!-- Help and Support View -->
+          <?!= include('SupportView'); ?>
+          
+          <!-- Settings View -->
+          <?!= include('Settings'); ?>
+          
+          <!-- Audit Trail View -->
+          <?!= include('AuditTrail'); ?>
+          
+        </main>
+        
+        <!-- Footer -->
+        <footer class="footer footer-center p-2 bg-base-300 text-base-content/50 text-[10px] sm:text-xs shrink-0">
+          <div class="flex items-center gap-1 sm:gap-2 max-w-full overflow-hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3 sm:w-4 sm:h-4 text-primary shrink-0" v-html="getIconSvg(APP_CONFIG.icon)">
+            </svg>
+            <span class="whitespace-nowrap truncate">{{ APP_CONFIG.name }} v{{ APP_CONFIG.version }} • {{ APP_CONFIG.footerText }}</span>
+          </div>
+        </footer>
+        
+      </div>
+      
+      <!-- Sidebar -->
+      <?!= include('Sidebar'); ?>
+      
+    </div>
+    
+    <!-- Quick Link Modal -->
+    <?!= include('QuickLinksModal'); ?>
+    
+    <!-- Icon Picker Dropdown (teleported outside modal for proper z-index stacking) -->
+    <Teleport to="body">
+      <transition name="icon-picker-fade">
+        <div
+          v-if="state.quickLinks.iconDropdownOpen && state.quickLinks.modalOpen"
+          class="fixed z-[9999] shadow-2xl bg-base-200 rounded-box border border-base-300"
+          :style="iconPickerDropdownStyle"
+          @click.stop
+        >
+          <!-- Header -->
+          <div class="p-3 border-b border-base-300 flex items-center justify-between gap-2 bg-base-300 rounded-t-box">
+            <div class="font-semibold">Select Icon</div>
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs btn-circle"
+              @click="closeIconDropdown"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Search -->
+          <div class="p-3 border-b border-base-300">
+            <input
+              type="text"
+              v-model="state.quickLinks.iconSearch"
+              placeholder="Search icons..."
+              class="input input-sm w-full"
+              :disabled="state.quickLinks.saving"
+            />
+            <div class="mt-2 text-xs text-base-content/50">
+              {{ filteredQuickLinkIconOptions.length }} icon(s)
+            </div>
+          </div>
+
+          <!-- Grid -->
+          <div class="p-3 max-h-72 overflow-y-auto">
+            <div v-if="filteredQuickLinkIconOptions.length === 0" class="text-sm text-base-content/60 py-6 text-center">
+              No icons match your search.
+            </div>
+            <div v-else class="grid grid-cols-4 sm:grid-cols-5 gap-3">
+              <button
+                v-for="icon in filteredQuickLinkIconOptions"
+                :key="icon.value"
+                type="button"
+                class="btn btn-sm h-auto py-2 flex flex-col gap-2"
+                :class="state.quickLinks.form.icon === icon.value ? 'btn-primary' : 'btn-ghost'"
+                :disabled="state.quickLinks.saving"
+                @click="selectQuickLinkIcon(icon.value)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" v-html="getIconSvg(icon.value)"></svg>
+                <span class="block text-[11px] leading-tight opacity-80 text-center truncate w-full">{{ icon.label }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
+    <!-- Confirm Modal (shared) -->
+    <dialog
+      id="confirm-modal"
+      class="modal"
+      :class="{ 'modal-open': state.confirm.open }"
+      role="alertdialog"
+      aria-labelledby="confirm-modal-title"
+      aria-describedby="confirm-modal-desc"
+      aria-modal="true"
+    >
+      <div class="modal-box max-w-md">
+        <div class="flex items-start justify-between gap-4">
+          <h3 id="confirm-modal-title" class="text-lg font-bold">{{ state.confirm.title }}</h3>
+          <button
+            class="btn btn-ghost btn-sm btn-circle"
+            @click="closeConfirmModal"
+            :disabled="state.confirm.busy"
+            aria-label="Close"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <p id="confirm-modal-desc" class="py-4 text-base-content/70 whitespace-pre-line">{{ state.confirm.message }}</p>
+
+        <div class="modal-action">
+          <button
+            type="button"
+            class="btn btn-ghost"
+            @click="closeConfirmModal"
+            :disabled="state.confirm.busy"
+          >
+            {{ state.confirm.cancelLabel }}
+          </button>
+          <button
+            type="button"
+            class="btn"
+            :class="state.confirm.variant === 'error' ? 'btn-error' : 'btn-primary'"
+            @click="confirmModalProceed"
+            :disabled="state.confirm.busy"
+          >
+            <span v-if="state.confirm.busy" class="loading loading-spinner loading-sm"></span>
+            {{ state.confirm.busy ? state.confirm.workingLabel : state.confirm.confirmLabel }}
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="closeConfirmModal" :disabled="state.confirm.busy">close</button>
+      </form>
+    </dialog>
+    
+    <!-- Toast Notifications -->
+    <?!= include('Toast'); ?>
+    
+  </div>
+
+  <script>
+    const { createApp, reactive, computed, onMounted, watch, nextTick } = Vue;
+    
+    createApp({
+      setup() {
+        function readServerAppConfig() {
+          try {
+            const el = document.getElementById('server-app-config');
+            if (!el) return {};
+            const raw = (el.textContent || '').trim();
+            if (!raw) return {};
+            return JSON.parse(raw);
+          } catch {
+            return {};
+          }
+        }
+
+        const SERVER_APP_CONFIG = readServerAppConfig();
+
+        // ==================== APP CONFIG (from Config.js) ====================
+        // Defaults are used when running outside Apps Script.
+        const APP_CONFIG = reactive(Object.assign({
+          name: '',
+          subtitle: '',
+          pageTitle: '',
+          version: '1.0.0',
+          icon: 'rocket',
+          footerText: '',
+          faviconUrl: ''
+        }, SERVER_APP_CONFIG));
+
+        function loadAppConfig() {
+          try {
+            if (!globalThis.google?.script?.run) return;
+            google.script.run
+              .withSuccessHandler(cfg => {
+                if (cfg && typeof cfg === 'object') {
+                  Object.assign(APP_CONFIG, cfg);
+                  try {
+                    document.title = APP_CONFIG.pageTitle || APP_CONFIG.name || document.title;
+                  } catch {
+                    // Ignore
+                  }
+                }
+              })
+              .getAppConfig();
+          } catch (e) {
+            // Non-fatal; defaults will be used.
+          }
+        }
+        
+        // ==================== STATE ====================
+        const state = reactive({
+          // Auth state
+          isAuthenticated: false,
+          authStatus: 'LOADING', // LOADING, SETUP_REQUIRED, AUTHENTICATING, ACCESS_DENIED, ERROR
+          authMessage: 'Initializing...',
+          authProgress: 0,
+          setupLoading: false,
+          setupError: null,
+          setupForm: {
+            spreadsheetInput: '',
+            email: '',
+            name: ''
+          },
+          
+          // User state
+          user: {
+            email: '',
+            name: '',
+            role: ''
+          },
+          isAdmin: false,
+          
+          // Navigation
+          currentView: 'home',
+          sidebarCollapsed: false,
+          
+          // Settings
+          settings: {
+            activeTab: 'general',
+            darkMode: true,
+            theme: 'dark',
+            animationsEnabled: true,
+            animationIntensity: 'engaging' // 'subtle', 'engaging', 'disabled'
+          },
+          
+          // Users (admin)
+          users: {
+            list: [],
+            loading: false,
+            modalOpen: false,
+            editMode: false,
+            saving: false,
+            saveError: null,
+            deletingRowIndex: null,
+            form: {
+              email: '',
+              name: '',
+              role: 'user',
+              rowIndex: null
+            }
+          },
+          
+          // Quick Links
+          quickLinks: {
+            list: [],
+            loading: false,
+            error: null,
+            searchQuery: '',
+            filterCategory: '',
+            iconSearch: '',
+            iconDropdownOpen: false,
+            modalOpen: false,
+            editMode: false,
+            saving: false,
+            saveError: null,
+            categorySelectValue: '',
+            newCategory: '',
+            form: {
+              name: '',
+              link: '',
+              category: '',
+              icon: '',
+              rowIndex: null
+            },
+            formErrors: {}
+          },
+
+          support: {
+            submitting: false,
+            success: null,
+            error: null,
+            form: {
+              type: 'broken_link',
+              subject: '',
+              link: '',
+              description: ''
+            }
+          },
+          
+          // Audit Log
+          auditLog: {
+            list: [],
+            loading: false,
+            error: null,
+            currentPage: 1,
+            pageSize: 25,
+            jumpToPage: '',
+            filters: {
+              startDate: '',
+              endDate: '',
+              entityType: '',
+              action: '',
+              search: ''
+            },
+            detailsModalOpen: false,
+            selectedLog: null
+          },
+          
+          // Database Config
+          dbConfig: {
+            loading: false,
+            saving: false,
+            mainDbUrl: '',
+            mainDbStatus: null,
+            mainDbError: null,
+            verifying: false,
+            verifyResult: null
+          },
+
+          confirm: {
+            open: false,
+            title: '',
+            message: '',
+            confirmLabel: 'Confirm',
+            workingLabel: 'Working...',
+            cancelLabel: 'Cancel',
+            variant: 'error',
+            busy: false
+          }
+        });
+
+        const animationsDisabled = computed(() => (
+          state.settings.animationIntensity === 'disabled' || state.settings.animationsEnabled === false
+        ));
+        
+        // ==================== TOAST SYSTEM ====================
+        const toasts = reactive([]);
+        let toastId = 0;
+        
+        function showToast(message, type = 'info', duration = 4000) {
+          const id = ++toastId;
+          toasts.push({ id, message, type });
+          
+          setTimeout(() => {
+            const index = toasts.findIndex(t => t.id === id);
+            if (index > -1) toasts.splice(index, 1);
+          }, duration);
+        }
+
+        // ==================== GAS PROMISE WRAPPER ====================
+        function gasCall(methodName, ...args) {
+          return new Promise((resolve, reject) => {
+            if (!globalThis.google?.script?.run) {
+              reject(new Error('Google Apps Script runtime is not available'));
+              return;
+            }
+            try {
+              google.script.run
+                .withSuccessHandler(resolve)
+                .withFailureHandler(reject)
+                [methodName](...args);
+            } catch (e) {
+              reject(e);
+            }
+          });
+        }
+
+        // ==================== PAGINATION HELPERS (REUSABLE) ====================
+        function clampNumber(value, min, max) {
+          if (!Number.isFinite(value)) return min;
+          return Math.min(max, Math.max(min, value));
+        }
+
+        function createPager({ getTotalItems, getPageSize, setPageSize, getCurrentPage, setCurrentPage }) {
+          const totalPages = computed(() => {
+            const totalItems = Number(getTotalItems()) || 0;
+            const size = Number(getPageSize()) || 1;
+            return Math.max(1, Math.ceil(totalItems / size));
+          });
+
+          const canPrev = computed(() => (Number(getCurrentPage()) || 1) > 1);
+          const canNext = computed(() => (Number(getCurrentPage()) || 1) < totalPages.value);
+
+          function goto(page) {
+            const nextPage = clampNumber(Number(page), 1, totalPages.value);
+            setCurrentPage(nextPage);
+          }
+
+          function first() {
+            goto(1);
+          }
+
+          function last() {
+            goto(totalPages.value);
+          }
+
+          function prev() {
+            goto((Number(getCurrentPage()) || 1) - 1);
+          }
+
+          function next() {
+            goto((Number(getCurrentPage()) || 1) + 1);
+          }
+
+          function clampCurrent() {
+            goto(getCurrentPage());
+          }
+
+          function setSize(size) {
+            setPageSize(Number(size));
+            goto(1);
+          }
+
+          return {
+            totalPages,
+            canPrev,
+            canNext,
+            goto,
+            first,
+            last,
+            prev,
+            next,
+            clampCurrent,
+            setPageSize: setSize
+          };
+        }
+
+        // ==================== CONFIRM MODAL (REUSABLE) ====================
+        let confirmAction = null;
+
+        function openConfirmModal({ title, message, confirmLabel = 'Confirm', workingLabel = 'Working...', cancelLabel = 'Cancel', variant = 'error', action }) {
+          state.confirm.title = title || 'Confirm';
+          state.confirm.message = message || '';
+          state.confirm.confirmLabel = confirmLabel;
+          state.confirm.workingLabel = workingLabel;
+          state.confirm.cancelLabel = cancelLabel;
+          state.confirm.variant = variant;
+          state.confirm.busy = false;
+          state.confirm.open = true;
+          confirmAction = typeof action === 'function' ? action : null;
+        }
+
+        function closeConfirmModal() {
+          if (state.confirm.busy) return;
+          state.confirm.open = false;
+          confirmAction = null;
+        }
+
+        async function confirmModalProceed() {
+          if (state.confirm.busy || !confirmAction) return;
+          state.confirm.busy = true;
+          try {
+            await confirmAction();
+            state.confirm.open = false;
+            confirmAction = null;
+          } catch (e) {
+            showToast(e?.message || 'Action failed', 'error');
+          } finally {
+            state.confirm.busy = false;
+          }
+        }
+        
+        // ==================== ICON PICKER SYSTEM ====================
+        const QUICK_LINK_ICON_SVGS = {
+          'link': '<path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />',
+          'globe': '<path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />',
+          'document': '<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />',
+          'folder': '<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />',
+          'code': '<path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />',
+          'database': '<path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />',
+          'chart': '<path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />',
+          'calendar': '<path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />',
+          'mail': '<path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />',
+          'user': '<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />',
+          'users': '<path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />',
+          'cog': '<path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />',
+          'home': '<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />',
+          'star': '<path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />',
+          'heart': '<path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />',
+          'bolt': '<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />',
+          'cloud': '<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" />',
+          'server': '<path stroke-linecap="round" stroke-linejoin="round" d="M21.75 17.25v-.228a4.5 4.5 0 00-.12-1.03l-2.268-9.64a3.375 3.375 0 00-3.285-2.602H7.923a3.375 3.375 0 00-3.285 2.602l-2.268 9.64a4.5 4.5 0 00-.12 1.03v.228m19.5 0a3 3 0 01-3 3H5.25a3 3 0 01-3-3m19.5 0a3 3 0 00-3-3H5.25a3 3 0 00-3 3m16.5 0h.008v.008h-.008v-.008zm-3 0h.008v.008h-.008v-.008z" />',
+          'phone': '<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />',
+          'camera': '<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />',
+          'lock': '<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />',
+          'key': '<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />',
+          'shield': '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />',
+          'bell': '<path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />',
+          'chat': '<path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />',
+          'video': '<path stroke-linecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />',
+          'music': '<path stroke-linecap="round" stroke-linejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />',
+          'photo': '<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />',
+          'cpu': '<path stroke-linecap="round" stroke-linejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6.75v10.5a2.25 2.25 0 002.25 2.25zm.75-12h9v9h-9v-9z" />',
+          'terminal': '<path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />',
+          'cube': '<path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />',
+          'rocket': '<path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />',
+          'gift': '<path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />',
+          'bookmark': '<path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />',
+          'flag': '<path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />',
+          'clipboard': '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />',
+          'pencil': '<path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />',
+          'trash': '<path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />',
+          'download': '<path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />',
+          'upload': '<path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />',
+          'share': '<path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />',
+          'printer': '<path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />',
+          'wifi': '<path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z" />',
+          'bug': '<path stroke-linecap="round" stroke-linejoin="round" d="M12 12.75c1.148 0 2.278.08 3.383.237 1.037.146 1.866.966 1.866 2.013 0 3.728-2.35 6.75-5.25 6.75S6.75 18.728 6.75 15c0-1.046.83-1.867 1.866-2.013A24.204 24.204 0 0112 12.75zm0 0c2.883 0 5.647.508 8.207 1.44a23.91 23.91 0 01-1.152 6.06M12 12.75c-2.883 0-5.647.508-8.208 1.44.125 2.104.52 4.136 1.153 6.06M12 12.75a2.25 2.25 0 002.248-2.354M12 12.75a2.25 2.25 0 01-2.248-2.354M12 8.25c.995 0 1.971-.08 2.922-.236.403-.066.74-.358.795-.762a3.778 3.778 0 00-.399-2.25M12 8.25c-.995 0-1.97-.08-2.922-.236-.402-.066-.74-.358-.795-.762a3.734 3.734 0 01.4-2.253M12 8.25a2.25 2.25 0 00-2.248 2.146M12 8.25a2.25 2.25 0 012.248 2.146M8.683 5a6.032 6.032 0 01-1.155-1.002c.07-.63.27-1.222.574-1.747m.581 2.749A3.75 3.75 0 0115.318 5m0 0c.427-.283.815-.62 1.155-.999a4.471 4.471 0 00-.575-1.752M4.921 6a24.048 24.048 0 00-.392 3.314c1.668.546 3.416.914 5.223 1.082M19.08 6c.205 1.08.337 2.187.392 3.314a23.882 23.882 0 01-5.223 1.082" />',
+          'sparkles': '<path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />',
+          'fire': '<path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z" />',
+          'clock': '<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />',
+          'map': '<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 6.75v12l6 2.25 6-2.25v-12l-6 2.25-6-2.25z" /><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 8.25v11.25M17.25 6.75v11.25" />',
+          'pin': '<path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />'
+        };
+        
+        const QUICK_LINK_ICON_OPTIONS = [
+          { value: 'link', label: 'Link' },
+          { value: 'globe', label: 'Globe' },
+          { value: 'document', label: 'Document' },
+          { value: 'folder', label: 'Folder' },
+          { value: 'code', label: 'Code' },
+          { value: 'database', label: 'Database' },
+          { value: 'chart', label: 'Chart' },
+          { value: 'calendar', label: 'Calendar' },
+          { value: 'mail', label: 'Mail' },
+          { value: 'user', label: 'User' },
+          { value: 'users', label: 'Users' },
+          { value: 'cog', label: 'Settings' },
+          { value: 'home', label: 'Home' },
+          { value: 'star', label: 'Star' },
+          { value: 'heart', label: 'Heart' },
+          { value: 'bolt', label: 'Bolt' },
+          { value: 'cloud', label: 'Cloud' },
+          { value: 'server', label: 'Server' },
+          { value: 'phone', label: 'Phone' },
+          { value: 'camera', label: 'Camera' },
+          { value: 'lock', label: 'Lock' },
+          { value: 'key', label: 'Key' },
+          { value: 'shield', label: 'Shield' },
+          { value: 'bell', label: 'Bell' },
+          { value: 'chat', label: 'Chat' },
+          { value: 'video', label: 'Video' },
+          { value: 'music', label: 'Music' },
+          { value: 'photo', label: 'Photo' },
+          { value: 'cpu', label: 'CPU' },
+          { value: 'terminal', label: 'Terminal' },
+          { value: 'cube', label: 'Cube' },
+          { value: 'rocket', label: 'Rocket' },
+          { value: 'gift', label: 'Gift' },
+          { value: 'bookmark', label: 'Bookmark' },
+          { value: 'flag', label: 'Flag' },
+          { value: 'clipboard', label: 'Clipboard' },
+          { value: 'pencil', label: 'Pencil' },
+          { value: 'trash', label: 'Trash' },
+          { value: 'download', label: 'Download' },
+          { value: 'upload', label: 'Upload' },
+          { value: 'share', label: 'Share' },
+          { value: 'printer', label: 'Printer' },
+          { value: 'wifi', label: 'WiFi' },
+          { value: 'bug', label: 'Bug' },
+          { value: 'sparkles', label: 'Sparkles' },
+          { value: 'fire', label: 'Fire' },
+          { value: 'clock', label: 'Clock' },
+          { value: 'map', label: 'Map' },
+          { value: 'pin', label: 'Pin' }
+        ];
+        
+        function getIconSvg(iconKey) {
+          return QUICK_LINK_ICON_SVGS[iconKey] || QUICK_LINK_ICON_SVGS['link'];
+        }
+
+        const filteredQuickLinkIconOptions = computed(() => {
+          const q = (state.quickLinks.iconSearch || '').trim().toLowerCase();
+          if (!q) return QUICK_LINK_ICON_OPTIONS;
+          return QUICK_LINK_ICON_OPTIONS.filter(opt => {
+            const label = (opt.label || '').toLowerCase();
+            const value = (opt.value || '').toLowerCase();
+            return label.includes(q) || value.includes(q);
+          });
+        });
+        
+        // Computed style for the teleported icon picker dropdown
+        // Positioned centered and slightly narrower than the modal for better balance
+        const iconPickerDropdownStyle = computed(() => {
+          return {
+            width: 'min(86vw, 560px)',
+            maxHeight: '70vh',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)'
+          };
+        });
+
+        function openExternal(url) {
+          try {
+            if (!url || typeof url !== 'string') return;
+            const trimmed = url.trim();
+            if (!trimmed) return;
+
+            const opener = globalThis?.open || globalThis?.window?.open;
+            if (typeof opener === 'function') {
+              opener.call(globalThis, trimmed, '_blank');
+              return;
+            }
+
+            const locationObj = globalThis?.location;
+            if (locationObj && typeof locationObj.assign === 'function') {
+              locationObj.assign(trimmed);
+            }
+          } catch (err) {
+            console.warn('Failed to open external link', err);
+          }
+        }
+        
+        // ==================== TIME DISPLAY ====================
+        const currentTime = Vue.ref('');
+        const currentDate = Vue.ref('');
+        
+        function updateTime() {
+          const now = new Date();
+          currentTime.value = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          currentDate.value = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+        
+        // Initialize and update every second
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        // ==================== THEME ====================
+        const availableThemes = [
+          { name: 'Light', value: 'light' },
+          { name: 'Dark', value: 'dark' },
+          { name: 'Cupcake', value: 'cupcake' },
+          { name: 'Bumblebee', value: 'bumblebee' },
+          { name: 'Emerald', value: 'emerald' },
+          { name: 'Corporate', value: 'corporate' },
+          { name: 'Synthwave', value: 'synthwave' },
+          { name: 'Retro', value: 'retro' },
+          { name: 'Cyberpunk', value: 'cyberpunk' },
+          { name: 'Valentine', value: 'valentine' },
+          { name: 'Halloween', value: 'halloween' },
+          { name: 'Garden', value: 'garden' },
+          { name: 'Forest', value: 'forest' },
+          { name: 'Aqua', value: 'aqua' },
+          { name: 'Lofi', value: 'lofi' },
+          { name: 'Pastel', value: 'pastel' },
+          { name: 'Fantasy', value: 'fantasy' },
+          { name: 'Wireframe', value: 'wireframe' },
+          { name: 'Black', value: 'black' },
+          { name: 'Luxury', value: 'luxury' },
+          { name: 'Dracula', value: 'dracula' },
+          { name: 'Cmyk', value: 'cmyk' },
+          { name: 'Autumn', value: 'autumn' },
+          { name: 'Business', value: 'business' },
+          { name: 'Acid', value: 'acid' },
+          { name: 'Lemonade', value: 'lemonade' },
+          { name: 'Night', value: 'night' },
+          { name: 'Coffee', value: 'coffee' },
+          { name: 'Winter', value: 'winter' },
+          { name: 'Dim', value: 'dim' },
+          { name: 'Nord', value: 'nord' },
+          { name: 'Sunset', value: 'sunset' },
+          { name: 'Caramellatte', value: 'caramellatte' },
+          { name: 'Abyss', value: 'abyss' },
+          { name: 'Silk', value: 'silk' }
+        ];
+
+        function getThemeMeta(theme) {
+          try {
+            const probe = document.createElement('div');
+            probe.setAttribute('data-theme', theme);
+            probe.className = 'bg-base-100';
+            probe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
+            document.body.appendChild(probe);
+
+            const probeStyle = getComputedStyle(probe);
+            const bg = probeStyle.backgroundColor;
+            const cs = probeStyle.colorScheme || '';
+            probe.remove();
+
+            // If the browser exposes a color-scheme, trust it.
+            if (cs) {
+              return {
+                backgroundColor: bg,
+                isDark: cs.includes('dark') && !cs.includes('light')
+              };
+            }
+
+            // Otherwise, infer from the background luminance.
+            const m = (bg || '').match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+            if (m) {
+              const srgbToLin = (v) => {
+                const s = v / 255;
+                return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+              };
+              const r = srgbToLin(Number(m[1]));
+              const g = srgbToLin(Number(m[2]));
+              const b = srgbToLin(Number(m[3]));
+              const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+              return {
+                backgroundColor: bg,
+                isDark: luminance < 0.45
+              };
+            }
+
+            return { backgroundColor: bg, isDark: true };
+          } catch (e) {
+            return { backgroundColor: '', isDark: true };
+          }
+        }
+        
+        function loadThemePreference() {
+          const saved = localStorage.getItem('app-theme');
+          if (saved) {
+            state.settings.theme = saved;
+            state.settings.darkMode = getThemeMeta(saved).isDark;
+            document.documentElement.setAttribute('data-theme', saved);
+          }
+        }
+        
+        function setTheme(theme) {
+          const meta = getThemeMeta(theme);
+
+          // Update Vue state immediately for instant UI feedback (ring highlight)
+          state.settings.theme = theme;
+          state.settings.darkMode = meta.isDark;
+          localStorage.setItem('app-theme', theme);
+
+          // If animations disabled, just switch instantly
+          if (state.settings.animationIntensity === 'disabled') {
+            document.documentElement.setAttribute('data-theme', theme);
+            return;
+          }
+          
+          // Get computed transition duration from CSS variable
+          const duration = parseInt(
+            getComputedStyle(document.documentElement).getPropertyValue('--theme-transition-duration') || '200'
+          );
+          
+          // Create fade overlay for smooth transition
+          const overlay = document.createElement('div');
+          overlay.className = 'theme-transition-overlay';
+          overlay.style.backgroundColor = meta.backgroundColor || getComputedStyle(document.body).backgroundColor || '#000';
+          document.body.appendChild(overlay);
+          
+          // Use requestAnimationFrame for smoother mobile performance
+          requestAnimationFrame(() => {
+            overlay.classList.add('fade-in');
+            
+            // Use setTimeout instead of transitionend (more reliable on mobile)
+            setTimeout(() => {
+              // Switch theme while overlay is opaque
+              document.documentElement.setAttribute('data-theme', theme);
+              
+              // Fade out overlay
+              requestAnimationFrame(() => {
+                overlay.classList.remove('fade-in');
+                
+                // Remove overlay after fade-out completes
+                setTimeout(() => overlay.remove(), duration + 50);
+              });
+            }, duration);
+          });
+        }
+        
+        function toggleTheme() {
+          const newTheme = state.settings.darkMode ? 'dark' : 'light';
+          setTheme(newTheme);
+        }
+        
+        function saveAnimationPreference() {
+          localStorage.setItem('app-animations', state.settings.animationsEnabled);
+          localStorage.setItem('app-animation-intensity', state.settings.animationIntensity);
+          applyAnimationIntensity();
+        }
+        
+        function loadAnimationPreference() {
+          const savedEnabled = localStorage.getItem('app-animations');
+          const savedIntensity = localStorage.getItem('app-animation-intensity');
+          
+          if (savedEnabled !== null) {
+            state.settings.animationsEnabled = savedEnabled === 'true';
+          }
+          if (savedIntensity) {
+            state.settings.animationIntensity = savedIntensity;
+          }
+          if (state.settings.animationsEnabled === false && state.settings.animationIntensity !== 'disabled') {
+            state.settings.animationIntensity = 'disabled';
+          }
+          applyAnimationIntensity();
+        }
+        
+        function setAnimationIntensity(intensity) {
+          state.settings.animationIntensity = intensity;
+          state.settings.animationsEnabled = intensity !== 'disabled';
+          saveAnimationPreference();
+        }
+
+        /**
+         * Switches settings tab with CSS-based fade transition.
+         * This pattern is reusable for any internal tab navigation.
+         * @param {string} tab - The tab to switch to
+         */
+        function setSettingsTab(tab) {
+          if (!tab || state.settings.activeTab === tab) return;
+
+          const intensity = state.settings.animationIntensity;
+          const container = document.querySelector('.settings-tab-content');
+
+          // If animations disabled or no container, switch instantly
+          if (intensity === 'disabled' || !container) {
+            state.settings.activeTab = tab;
+            return;
+          }
+
+          // Add transitioning class to fade out
+          container.classList.add('tab-transitioning');
+          
+          const onFadeOut = () => {
+            container.removeEventListener('transitionend', onFadeOut);
+            
+            // Switch tab content
+            state.settings.activeTab = tab;
+            
+            // Wait for Vue to update DOM, then fade back in
+            nextTick().then(() => {
+              container.classList.remove('tab-transitioning');
+            });
+          };
+          
+          container.addEventListener('transitionend', onFadeOut);
+          
+          // Fallback timeout in case transitionend doesn't fire
+          const fallbackMs = intensity === 'subtle' ? 120 : 200;
+          setTimeout(() => {
+            if (container.classList.contains('tab-transitioning')) {
+              state.settings.activeTab = tab;
+              container.classList.remove('tab-transitioning');
+            }
+          }, fallbackMs);
+        }
+        
+        function applyAnimationIntensity() {
+          const root = document.documentElement;
+          document.body.classList.remove('no-animations', 'animations-subtle', 'animations-engaging');
+
+          const isDisabled = (state.settings.animationIntensity === 'disabled' || state.settings.animationsEnabled === false);
+
+          if (isDisabled) {
+            document.body.classList.add('no-animations');
+          } else if (state.settings.animationIntensity === 'subtle') {
+            document.body.classList.add('animations-subtle');
+          } else {
+            document.body.classList.add('animations-engaging');
+          }
+        }
+        
+        // ==================== NAVIGATION ====================
+        function navigateTo(view) {
+          state.currentView = view;
+          
+          // Close mobile drawer
+          const drawer = document.getElementById('sidebar-drawer');
+          if (drawer) drawer.checked = false;
+          
+          // Load data for view if needed
+          if (view === 'audit' && state.auditLog.list.length === 0) {
+            loadAuditLogs();
+          } else if (view === 'settings') {
+            if (state.settings.activeTab === 'users' && state.users.list.length === 0) {
+              loadUsers();
+            }
+          }
+        }
+
+        function resetSupportForm() {
+          state.support.form = {
+            type: 'broken_link',
+            subject: '',
+            link: '',
+            description: ''
+          };
+          state.support.success = null;
+          state.support.error = null;
+        }
+
+        function submitSupportRequest() {
+          state.support.submitting = true;
+          state.support.success = null;
+          state.support.error = null;
+
+          google.script.run
+            .withSuccessHandler(result => {
+              state.support.submitting = false;
+              if (result && result.success) {
+                state.support.success = result.message || 'Your support request was sent.';
+                state.support.form = {
+                  type: 'broken_link',
+                  subject: '',
+                  link: '',
+                  description: ''
+                };
+              } else {
+                state.support.error = result?.error || result?.message || 'Unable to send support request.';
+              }
+            })
+            .withFailureHandler(error => {
+              state.support.submitting = false;
+              state.support.error = error.message || 'Unable to send support request.';
+            })
+            .submitSupportRequest({ ...state.support.form });
+        }
+        
+        /**
+         * Toggles sidebar between collapsed and expanded states.
+         * 
+         * Animation sequence (when animations enabled):
+         * 1. Fade-out: CSS class 'sidebar-is-resizing' hides sidebar content
+         * 2. Width transition: Collapsed state toggles, triggering CSS width animation
+         * 3. Fade-in: After width transition ends, content fades back in
+         * 
+         * This prevents content from being visible during the width transition,
+         * which would cause visual glitches as elements reflow.
+         */
+        function toggleSidebar() {
+          const sidebar = document.querySelector('.drawer-side aside.sidebar-aside');
+          if (!sidebar) {
+            state.sidebarCollapsed = !state.sidebarCollapsed;
+            localStorage.setItem('app-sidebar-collapsed', state.sidebarCollapsed);
+            return;
+          }
+
+          const isDisabled = (state.settings.animationIntensity === 'disabled' || state.settings.animationsEnabled === false);
+
+          // Clear any inline styles that might interfere
+          sidebar.style.width = '';
+          sidebar.querySelectorAll('.sidebar-fade').forEach((el) => {
+            el.style.opacity = '';
+          });
+
+          // Clean up any in-flight resize handlers/timeouts.
+          if (sidebar._sidebarResizeHandler) {
+            sidebar.removeEventListener('transitionend', sidebar._sidebarResizeHandler);
+            sidebar._sidebarResizeHandler = null;
+          }
+          if (sidebar._sidebarWidthFallbackTimeoutId) {
+            window.clearTimeout(sidebar._sidebarWidthFallbackTimeoutId);
+            sidebar._sidebarWidthFallbackTimeoutId = null;
+          }
+          if (sidebar._sidebarStateDelayTimeoutId) {
+            window.clearTimeout(sidebar._sidebarStateDelayTimeoutId);
+            sidebar._sidebarStateDelayTimeoutId = null;
+          }
+
+          // In disabled mode, ensure the width is purely class-driven (no animation, no fade gating).
+          if (isDisabled) {
+            sidebar.classList.remove('sidebar-is-resizing');
+            state.sidebarCollapsed = !state.sidebarCollapsed;
+            localStorage.setItem('app-sidebar-collapsed', state.sidebarCollapsed);
+            return;
+          }
+
+          // Fade out first, then toggle collapsed state (width animates), then fade in after width transition ends.
+          sidebar.classList.remove('sidebar-is-resizing');
+          void sidebar.offsetWidth;
+          sidebar.classList.add('sidebar-is-resizing');
+
+          const parseDurationMs = (duration) => {
+            if (!duration) return 0;
+            const first = duration.split(',')[0].trim();
+            if (first.endsWith('ms')) return Number.parseFloat(first);
+            if (first.endsWith('s')) return Number.parseFloat(first) * 1000;
+            return Number.parseFloat(first) || 0;
+          };
+
+          const fadeMs = parseDurationMs(getComputedStyle(document.body).getPropertyValue('--sidebar-fade-duration'));
+
+          const finishResize = () => {
+            sidebar.classList.remove('sidebar-is-resizing');
+          };
+
+          const onEnd = (e) => {
+            if (e.target === sidebar && e.propertyName === 'width') {
+              sidebar.removeEventListener('transitionend', onEnd);
+              sidebar._sidebarResizeHandler = null;
+              finishResize();
+            }
+          };
+
+          sidebar._sidebarStateDelayTimeoutId = window.setTimeout(() => {
+            // Attach the listener BEFORE toggling so we reliably catch the transition end.
+            sidebar._sidebarResizeHandler = onEnd;
+            sidebar.addEventListener('transitionend', onEnd);
+
+            state.sidebarCollapsed = !state.sidebarCollapsed;
+            localStorage.setItem('app-sidebar-collapsed', state.sidebarCollapsed);
+
+            // Fallback: if transitionend doesn't fire (browser quirks), still restore opacity.
+            const durationMs = parseDurationMs(getComputedStyle(sidebar).transitionDuration);
+            sidebar._sidebarWidthFallbackTimeoutId = window.setTimeout(() => {
+              if (sidebar._sidebarResizeHandler) {
+                sidebar.removeEventListener('transitionend', sidebar._sidebarResizeHandler);
+                sidebar._sidebarResizeHandler = null;
+              }
+              sidebar._sidebarWidthFallbackTimeoutId = null;
+              finishResize();
+            }, Math.max(0, durationMs) + 60);
+          }, Math.max(0, fadeMs));
+        }
+        
+        // ==================== AUTHENTICATION ====================
+        function authenticate() {
+          state.authStatus = 'LOADING';
+          state.authMessage = 'Checking authentication...';
+          
+          google.script.run
+            .withSuccessHandler(result => {
+              if (result.status === 'SETUP_REQUIRED') {
+                state.authStatus = 'SETUP_REQUIRED';
+                state.setupForm.email = result.email || '';
+              } else if (result.status === 'AUTHENTICATED') {
+                state.user = {
+                  email: result.email,
+                  name: result.name,
+                  role: result.role
+                };
+                state.isAdmin = result.isAdmin || result.role === 'admin';
+                
+                state.authStatus = 'AUTHENTICATING';
+                state.authMessage = `Welcome back, ${result.name}!`;
+                
+                // Animate progress and complete auth
+                animateAuthProgress();
+              } else if (result.status === 'ACCESS_DENIED') {
+                state.authStatus = 'ACCESS_DENIED';
+                state.authMessage = 'Your email is not registered in the system.';
+                state.user.email = result.email || '';
+              } else {
+                state.authStatus = 'ERROR';
+                state.authMessage = result.message || 'Authentication failed';
+              }
+            })
+            .withFailureHandler(error => {
+              state.authStatus = 'ERROR';
+              state.authMessage = error.message || 'Failed to authenticate';
+            })
+            .authenticate();
+        }
+        
+        function animateAuthProgress() {
+          // Track data loading progress
+          let dataLoaded = {
+            quickLinks: false,
+            auditLogs: false,
+            users: false
+          };
+          
+          // Start loading data immediately in parallel
+          state.authMessage = 'Loading Quick Links...';
+          google.script.run
+            .withSuccessHandler(result => {
+              if (result.success) {
+                const rawItems = result.items || [];
+                state.quickLinks.list = rawItems.map(item => ({
+                  ...item,
+                  icon: item.icon || item.iconKey || ''
+                }));
+              }
+              dataLoaded.quickLinks = true;
+              checkAllDataLoaded();
+            })
+            .withFailureHandler(() => {
+              dataLoaded.quickLinks = true;
+              checkAllDataLoaded();
+            })
+            .getQuickLinks();
+          
+          // Load users if admin (or just mark as loaded for non-admins)
+          if (state.isAdmin) {
+            google.script.run
+              .withSuccessHandler(result => {
+                if (result.success) {
+                  const rawUsers = result.users || [];
+                  state.users.list = rawUsers.map(u => ({
+                    ...u,
+                    rowIndex: u.rowIndex ?? u.id
+                  }));
+                }
+                dataLoaded.users = true;
+                checkAllDataLoaded();
+              })
+              .withFailureHandler(() => {
+                dataLoaded.users = true;
+                checkAllDataLoaded();
+              })
+              .getUsers();
+            
+            // Load audit logs
+            google.script.run
+              .withSuccessHandler(result => {
+                if (result.success) {
+                  state.auditLog.list = result.entries || [];
+                }
+                dataLoaded.auditLogs = true;
+                checkAllDataLoaded();
+              })
+              .withFailureHandler(() => {
+                dataLoaded.auditLogs = true;
+                checkAllDataLoaded();
+              })
+              .getAuditLogs();
+          } else {
+            dataLoaded.users = true;
+            dataLoaded.auditLogs = true;
+          }
+          
+          // Start visual progress animation
+          let progress = 0;
+          const progressInterval = setInterval(() => {
+            // Animate to 80% quickly, then wait for data
+            if (progress < 80) {
+              progress += 8;
+              state.authProgress = progress;
+              
+              // Update messages based on progress
+              if (progress >= 20 && progress < 40) {
+                state.authMessage = 'Loading Users...';
+              } else if (progress >= 40 && progress < 60) {
+                state.authMessage = 'Loading Audit Logs...';
+              } else if (progress >= 60) {
+                state.authMessage = 'Preparing dashboard...';
+              }
+            } else {
+              clearInterval(progressInterval);
+              // Now wait for data to actually load before completing
+              checkAllDataLoaded();
+            }
+          }, 60);
+          
+          function checkAllDataLoaded() {
+            const allLoaded = Object.values(dataLoaded).every(v => v);
+            
+            if (allLoaded && state.authProgress >= 80) {
+              // Complete the progress bar
+              let finalProgress = state.authProgress;
+              const finalInterval = setInterval(() => {
+                finalProgress += 5;
+                state.authProgress = finalProgress;
+                
+                if (finalProgress >= 100) {
+                  clearInterval(finalInterval);
+                  state.authMessage = 'Ready!';
+                  setTimeout(() => {
+                    state.isAuthenticated = true;
+                  }, 200);
+                }
+              }, 30);
+            }
+          }
+        }
+        
+        function submitSetup() {
+          const { spreadsheetInput, email, name } = state.setupForm;
+          
+          if (!spreadsheetInput || !name) {
+            state.setupError = 'Please fill in all required fields';
+            return;
+          }
+          
+          state.setupLoading = true;
+          state.setupError = null;
+          
+          google.script.run
+            .withSuccessHandler(result => {
+              state.setupLoading = false;
+              
+              if (result.success) {
+                // Setup complete, authenticate again
+                authenticate();
+              } else {
+                state.setupError = result.message || 'Setup failed';
+              }
+            })
+            .withFailureHandler(error => {
+              state.setupLoading = false;
+              state.setupError = error.message || 'Setup failed';
+            })
+            .performInitialSetup({
+              spreadsheetInput: spreadsheetInput,
+              email: email,
+              name: name
+            });
+        }
+        
+        // ==================== INITIAL DATA ====================
+        // Note: Data is now pre-loaded during auth. This function only loads
+        // data that wasn't loaded or needs refreshing.
+        function loadInitialData() {
+          // Data is pre-loaded during authentication progress
+          // This function is kept for compatibility and manual refreshes
+          if (state.isAdmin && state.users.list.length === 0) {
+            loadUsers();
+          }
+        }
+        
+        // ==================== USERS ====================
+        function loadUsers() {
+          state.users.loading = true;
+          
+          google.script.run
+            .withSuccessHandler(result => {
+              state.users.loading = false;
+              if (result.success) {
+                const rawUsers = result.users || [];
+                state.users.list = rawUsers.map(u => ({
+                  ...u,
+                  rowIndex: u.rowIndex ?? u.id
+                }));
+              } else {
+                showToast(result.message || 'Failed to load users', 'error');
+              }
+            })
+            .withFailureHandler(error => {
+              state.users.loading = false;
+              showToast(error.message || 'Failed to load users', 'error');
+            })
+            .getUsers();
+        }
+        
+        function openUserModal(user = null) {
+          if (user) {
+            state.users.editMode = true;
+            state.users.form = {
+              email: user.email,
+              name: user.name,
+              role: user.role,
+              id: user.id
+            };
+          } else {
+            state.users.editMode = false;
+            state.users.form = {
+              email: '',
+              name: '',
+              role: 'user',
+              id: null
+            };
+          }
+          state.users.saveError = null;
+          state.users.modalOpen = true;
+        }
+        
+        function closeUserModal() {
+          state.users.modalOpen = false;
+        }
+        
+        function saveUser() {
+          state.users.saving = true;
+          state.users.saveError = null;
+          
+          const userData = {
+            id: state.users.form.id,
+            email: state.users.form.email,
+            name: state.users.form.name,
+            role: state.users.form.role
+          };
+          
+          if (state.users.editMode) {
+            google.script.run
+              .withSuccessHandler(handleUserSaveSuccess)
+              .withFailureHandler(handleUserSaveError)
+              .updateUser(userData);
+          } else {
+            google.script.run
+              .withSuccessHandler(handleUserSaveSuccess)
+              .withFailureHandler(handleUserSaveError)
+              .createUser(userData);
+          }
+        }
+        
+        function handleUserSaveSuccess(result) {
+          state.users.saving = false;
+          
+          if (result.success) {
+            showToast(state.users.editMode ? 'User updated' : 'User created', 'success');
+            closeUserModal();
+            loadUsers();
+          } else {
+            state.users.saveError = result.message || 'Failed to save user';
+          }
+        }
+        
+        function handleUserSaveError(error) {
+          state.users.saving = false;
+          state.users.saveError = error.message || 'Failed to save user';
+        }
+        
+        function deleteUser(user) {
+          openConfirmModal({
+            title: 'Delete user?',
+            message: `This will permanently delete:\n\n${user.name} (${user.email})`,
+            confirmLabel: 'Delete',
+            workingLabel: 'Deleting...',
+            variant: 'error',
+            action: async () => {
+              const rowIndex = user.rowIndex ?? user.id;
+              state.users.deletingRowIndex = rowIndex;
+              try {
+                const result = await gasCall('deleteUser', rowIndex);
+                if (result?.success) {
+                  showToast('User deleted', 'success');
+                  loadUsers();
+                  return;
+                }
+                throw new Error(result?.message || 'Failed to delete user');
+              } finally {
+                state.users.deletingRowIndex = null;
+              }
+            }
+          });
+        }
+        
+        // ==================== QUICK LINKS ====================
+        const quickLinksCategories = computed(() => {
+          const categories = new Set();
+          state.quickLinks.list.forEach(link => {
+            if (link.category) categories.add(link.category);
+          });
+          return Array.from(categories).sort();
+        });
+        
+        const filteredQuickLinks = computed(() => {
+          return state.quickLinks.list.filter(link => {
+            const matchesSearch = !state.quickLinks.searchQuery || 
+              link.name.toLowerCase().includes(state.quickLinks.searchQuery.toLowerCase()) ||
+              link.link.toLowerCase().includes(state.quickLinks.searchQuery.toLowerCase());
+            
+            const matchesCategory = !state.quickLinks.filterCategory || 
+              link.category === state.quickLinks.filterCategory;
+            
+            return matchesSearch && matchesCategory;
+          });
+        });
+        
+        function loadQuickLinks() {
+          state.quickLinks.loading = true;
+          state.quickLinks.error = null;
+          
+          google.script.run
+            .withSuccessHandler(result => {
+              state.quickLinks.loading = false;
+              if (result.success) {
+                const rawItems = result.items || [];
+                state.quickLinks.list = rawItems.map(item => ({
+                  ...item,
+                  icon: item.icon || item.iconKey || ''
+                }));
+              } else {
+                state.quickLinks.error = result.message || result.error || 'Failed to load quick links';
+              }
+            })
+            .withFailureHandler(error => {
+              state.quickLinks.loading = false;
+              state.quickLinks.error = error.message || 'Failed to load quick links';
+            })
+            .getQuickLinks();
+        }
+        
+        function openQuickLinkModal(link = null) {
+          if (link) {
+            state.quickLinks.editMode = true;
+            state.quickLinks.form = {
+              name: link.name,
+              link: link.link,
+              category: link.category || '',
+              icon: link.icon || link.iconKey || '',
+              rowIndex: link.rowIndex
+            };
+          } else {
+            state.quickLinks.editMode = false;
+            state.quickLinks.form = {
+              name: '',
+              link: '',
+              category: '',
+              icon: '',
+              rowIndex: null
+            };
+          }
+          state.quickLinks.formErrors = {};
+          state.quickLinks.saveError = null;
+          state.quickLinks.categorySelectValue = state.quickLinks.form.category || '';
+          state.quickLinks.newCategory = '';
+          state.quickLinks.iconSearch = '';
+          state.quickLinks.iconDropdownOpen = false;
+          state.quickLinks.modalOpen = true;
+        }
+        
+        function closeQuickLinkModal() {
+          state.quickLinks.modalOpen = false;
+          state.quickLinks.iconDropdownOpen = false;
+        }
+        
+        function onQuickLinkCategoryChange() {
+          const val = state.quickLinks.categorySelectValue;
+          if (!val) {
+            state.quickLinks.form.category = '';
+            return;
+          }
+          if (val !== '__new__') state.quickLinks.form.category = val;
+        }
+
+        function toggleIconDropdown() {
+          if (state.quickLinks.saving) return;
+          state.quickLinks.iconDropdownOpen = !state.quickLinks.iconDropdownOpen;
+        }
+
+        function closeIconDropdown() {
+          state.quickLinks.iconDropdownOpen = false;
+        }
+
+        function selectQuickLinkIcon(iconValue) {
+          state.quickLinks.form.icon = iconValue;
+          state.quickLinks.iconDropdownOpen = false;
+        }
+        
+        function saveQuickLink() {
+          // Validate
+          state.quickLinks.formErrors = {};
+          
+          if (!state.quickLinks.form.name.trim()) {
+            state.quickLinks.formErrors.name = 'Name is required';
+          }
+          
+          if (!state.quickLinks.form.link.trim()) {
+            state.quickLinks.formErrors.link = 'URL is required';
+          } else {
+            try {
+              new URL(state.quickLinks.form.link);
+            } catch {
+              state.quickLinks.formErrors.link = 'Invalid URL format';
+            }
+          }
+          
+          if (Object.keys(state.quickLinks.formErrors).length > 0) return;
+
+          // Resolve category (supports "New Category...")
+          let resolvedCategory = (state.quickLinks.form.category || '').trim();
+          if (state.quickLinks.categorySelectValue === '__new__') {
+            resolvedCategory = (state.quickLinks.newCategory || '').trim();
+            if (!resolvedCategory) {
+              state.quickLinks.formErrors.category = 'Category is required';
+              return;
+            }
+            // Keep it visible while saving even if not in dropdown list yet.
+            state.quickLinks.form.category = resolvedCategory;
+          } else {
+            if (!resolvedCategory) {
+              state.quickLinks.formErrors.category = 'Category is required';
+              return;
+            }
+          }
+          
+          state.quickLinks.saving = true;
+          state.quickLinks.saveError = null;
+          
+          const linkData = {
+            name: state.quickLinks.form.name.trim(),
+            link: state.quickLinks.form.link.trim(),
+            category: resolvedCategory,
+            iconKey: state.quickLinks.form.icon.trim()
+          };
+          
+          if (state.quickLinks.editMode) {
+            google.script.run
+              .withSuccessHandler(handleQuickLinkSaveSuccess)
+              .withFailureHandler(handleQuickLinkSaveError)
+              .updateQuickLink({ rowIndex: state.quickLinks.form.rowIndex, ...linkData });
+          } else {
+            google.script.run
+              .withSuccessHandler(handleQuickLinkSaveSuccess)
+              .withFailureHandler(handleQuickLinkSaveError)
+              .createQuickLink(linkData);
+          }
+        }
+        
+        function handleQuickLinkSaveSuccess(result) {
+          state.quickLinks.saving = false;
+          
+          if (result.success) {
+            showToast(state.quickLinks.editMode ? 'Link updated' : 'Link created', 'success');
+            closeQuickLinkModal();
+            loadQuickLinks();
+          } else {
+            state.quickLinks.saveError = result.message || result.error || 'Failed to save link';
+          }
+        }
+        
+        function handleQuickLinkSaveError(error) {
+          state.quickLinks.saving = false;
+          state.quickLinks.saveError = error.message || 'Failed to save link';
+        }
+        
+        function deleteQuickLink(link) {
+          openConfirmModal({
+            title: 'Delete quick link?',
+            message: `This will permanently delete:\n\n${link.name}`,
+            confirmLabel: 'Delete',
+            workingLabel: 'Deleting...',
+            variant: 'error',
+            action: async () => {
+              const result = await gasCall('deleteQuickLink', link.rowIndex);
+              if (result?.success) {
+                showToast('Link deleted', 'success');
+                closeQuickLinkModal();
+                loadQuickLinks();
+                return;
+              }
+              throw new Error(result?.message || 'Failed to delete link');
+            }
+          });
+        }
+
+        function deleteQuickLinkFromModal() {
+          if (!state.quickLinks.editMode) return;
+          const rowIndex = state.quickLinks.form.rowIndex;
+          if (!rowIndex) return;
+          deleteQuickLink({
+            rowIndex,
+            name: state.quickLinks.form.name || 'this link'
+          });
+        }
+        
+        // ==================== AUDIT LOG ====================
+        const hasActiveFilters = computed(() => {
+          return state.auditLog.filters.startDate || 
+            state.auditLog.filters.endDate || 
+            state.auditLog.filters.entityType || 
+            state.auditLog.filters.action || 
+            state.auditLog.filters.search;
+        });
+
+        const filteredAuditLogsAll = computed(() => {
+          let logs = state.auditLog.list;
+          
+          // Filter by entity type
+          if (state.auditLog.filters.entityType) {
+            logs = logs.filter(log => log.entityType === state.auditLog.filters.entityType);
+          }
+          
+          // Filter by action
+          if (state.auditLog.filters.action) {
+            logs = logs.filter(log => log.action === state.auditLog.filters.action);
+          }
+          
+          // Filter by date range
+          if (state.auditLog.filters.startDate) {
+            const startDate = new Date(state.auditLog.filters.startDate);
+            logs = logs.filter(log => new Date(log.timestamp) >= startDate);
+          }
+          
+          if (state.auditLog.filters.endDate) {
+            const endDate = new Date(state.auditLog.filters.endDate);
+            endDate.setHours(23, 59, 59, 999);
+            logs = logs.filter(log => new Date(log.timestamp) <= endDate);
+          }
+          
+          // Filter by search
+          if (state.auditLog.filters.search) {
+            const search = state.auditLog.filters.search.toLowerCase();
+            logs = logs.filter(log => 
+              log.userName?.toLowerCase().includes(search) ||
+              log.userEmail?.toLowerCase().includes(search) ||
+              log.summary?.toLowerCase().includes(search) ||
+              log.entityId?.toLowerCase().includes(search)
+            );
+          }
+
+          return logs;
+        });
+
+        const auditPager = createPager({
+          getTotalItems: () => filteredAuditLogsAll.value.length,
+          getPageSize: () => state.auditLog.pageSize,
+          setPageSize: (v) => { state.auditLog.pageSize = v; },
+          getCurrentPage: () => state.auditLog.currentPage,
+          setCurrentPage: (v) => { state.auditLog.currentPage = v; }
+        });
+
+        const pagedAuditLogs = computed(() => {
+          const logs = filteredAuditLogsAll.value;
+          const start = (state.auditLog.currentPage - 1) * state.auditLog.pageSize;
+          return logs.slice(start, start + state.auditLog.pageSize);
+        });
+
+        function goToAuditJumpPage() {
+          const raw = state.auditLog.jumpToPage;
+          const n = Number(String(raw ?? '').trim());
+          auditPager.goto(n);
+        }
+
+        watch(
+          () => [
+            state.auditLog.filters.startDate,
+            state.auditLog.filters.endDate,
+            state.auditLog.filters.entityType,
+            state.auditLog.filters.action,
+            state.auditLog.filters.search
+          ],
+          () => {
+            state.auditLog.currentPage = 1;
+          }
+        );
+
+        watch(
+          () => [filteredAuditLogsAll.value.length, state.auditLog.pageSize],
+          () => {
+            auditPager.clampCurrent();
+          }
+        );
+        
+        function loadAuditLogs() {
+          state.auditLog.loading = true;
+          state.auditLog.error = null;
+          
+          google.script.run
+            .withSuccessHandler(result => {
+              state.auditLog.loading = false;
+              if (result.success) {
+                state.auditLog.list = result.entries || [];
+              } else {
+                state.auditLog.error = result.message || 'Failed to load audit logs';
+              }
+            })
+            .withFailureHandler(error => {
+              state.auditLog.loading = false;
+              state.auditLog.error = error.message || 'Failed to load audit logs';
+            })
+            .getAuditLogs();
+        }
+        
+        function clearAuditFilters() {
+          state.auditLog.filters = {
+            startDate: '',
+            endDate: '',
+            entityType: '',
+            action: '',
+            search: ''
+          };
+          state.auditLog.currentPage = 1;
+        }
+        
+        function showAuditDetails(log) {
+          state.auditLog.selectedLog = log;
+          state.auditLog.detailsModalOpen = true;
+        }
+        
+        function formatEntityType(type) {
+          const types = {
+            'USER': 'User',
+            'DB_CONFIG': 'Database Config',
+            'QUICK_LINK': 'Quick Link'
+          };
+          return types[type] || type;
+        }
+
+        // Date/time formatting helpers (reusable)
+        function formatDateLong(timestamp) {
+          const d = new Date(timestamp);
+          return d.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+        }
+
+        function formatTimeShort(timestamp) {
+          const d = new Date(timestamp);
+          return d.toLocaleTimeString(undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+          });
+        }
+
+        function formatDateTimeLong(timestamp) {
+          const d = new Date(timestamp);
+          const datePart = formatDateLong(d);
+          const timePart = d.toLocaleTimeString(undefined, {
+            hour: 'numeric',
+            minute: '2-digit',
+            second: '2-digit'
+          });
+          return `${datePart} ${timePart}`;
+        }
+
+        // Backwards-compatible names used in templates
+        function formatDate(timestamp) {
+          return formatDateLong(timestamp);
+        }
+
+        function formatTime(timestamp) {
+          return formatTimeShort(timestamp);
+        }
+
+        function formatDateTime(timestamp) {
+          return formatDateTimeLong(timestamp);
+        }
+        
+        function formatChanges(changes) {
+          try {
+            if (typeof changes === 'string') {
+              changes = JSON.parse(changes);
+            }
+            return JSON.stringify(changes, null, 2);
+          } catch {
+            return changes;
+          }
+        }
+        
+        function parseChanges(changes) {
+          try {
+            if (typeof changes === 'string') {
+              changes = JSON.parse(changes);
+            }
+            if (!changes || typeof changes !== 'object' || Array.isArray(changes)) return {};
+
+            const normalized = {};
+            for (const [field, value] of Object.entries(changes)) {
+              if (value && typeof value === 'object' && !Array.isArray(value) && ('old' in value || 'new' in value)) {
+                normalized[field] = {
+                  old: value.old ?? '',
+                  new: value.new ?? ''
+                };
+              } else {
+                normalized[field] = {
+                  old: '',
+                  new: typeof value === 'string' ? value : JSON.stringify(value)
+                };
+              }
+            }
+
+            return normalized;
+          } catch {
+            return {};
+          }
+        }
+        
+        function formatFieldName(field) {
+          return field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace(/_/g, ' ');
+        }
+        
+        // ==================== DATABASE CONFIG ====================
+        function loadDbConfig() {
+          state.dbConfig.loading = true;
+          // Refreshing should clear any previous verification banner.
+          state.dbConfig.verifyResult = null;
+          state.dbConfig.mainDbError = null;
+          
+          google.script.run
+            .withSuccessHandler(result => {
+              state.dbConfig.loading = false;
+              if (result.success) {
+                state.dbConfig.mainDbUrl = result.mainDbUrl || '';
+                state.dbConfig.mainDbStatus = result.mainDbUrl ? 'connected' : null;
+              }
+            })
+            .withFailureHandler(error => {
+              state.dbConfig.loading = false;
+              state.dbConfig.verifyResult = null;
+              showToast('Failed to load database config', 'error');
+            })
+            .getDbConfig();
+        }
+
+        function refreshAllDatabases() {
+          // Future-proof: when multiple DBs exist, refresh them all here.
+          loadDbConfig();
+        }
+
+        function restartWebApp() {
+          // Spike v2 pattern: avoid window reload; reset state and re-authenticate.
+          // This reliably re-runs startup/auth + data preload, applying config changes.
+          try {
+            // Close transient UI
+            state.users.modalOpen = false;
+            state.quickLinks.modalOpen = false;
+            state.quickLinks.iconDropdownOpen = false;
+            state.auditLog.detailsModalOpen = false;
+
+            state.confirm.open = false;
+            state.confirm.busy = false;
+            confirmAction = null;
+
+            // Reset view & runtime data
+            state.currentView = 'home';
+
+            state.quickLinks.list = [];
+            state.quickLinks.loading = false;
+            state.quickLinks.error = null;
+
+            state.users.list = [];
+            state.users.loading = false;
+            state.users.deletingRowIndex = null;
+
+            state.auditLog.list = [];
+            state.auditLog.loading = false;
+            state.auditLog.error = null;
+            state.auditLog.currentPage = 1;
+            state.auditLog.jumpToPage = '';
+
+            // Reset auth state (shows overlay again)
+            state.isAuthenticated = false;
+            state.authStatus = 'LOADING';
+            state.authProgress = 0;
+            state.authMessage = 'Restarting...';
+
+            state.user = { email: '', name: '', role: '' };
+            state.isAdmin = false;
+
+            // Re-fetch config on restart
+            refreshAllDatabases();
+
+            // Kick off auth again
+            setTimeout(() => {
+              authenticate();
+            }, 250);
+          } catch (e) {
+            // Fallback: if something goes wrong, try a hard reload.
+            window.location.href = window.location.href;
+          }
+        }
+        
+        function saveDbConfig() {
+          state.dbConfig.saving = true;
+          
+          google.script.run
+            .withSuccessHandler(result => {
+              state.dbConfig.saving = false;
+              const mainResult = result?.mainDb || result;
+              if (mainResult?.success) {
+                showToast('Database configuration saved', 'success');
+                state.dbConfig.mainDbStatus = 'connected';
+                state.dbConfig.mainDbError = null;
+
+                openConfirmModal({
+                  title: 'Restart to apply changes?'
+                  ,message: 'Database configuration has been updated. Would you like to restart the web app to apply the changes?'
+                  ,confirmLabel: 'Restart now'
+                  ,workingLabel: 'Restarting...'
+                  ,cancelLabel: 'Later'
+                  ,variant: 'primary'
+                  ,action: async () => {
+                    showToast('Restarting app...', 'info');
+                    // allow the modal to close smoothly
+                    await new Promise(r => setTimeout(r, 150));
+                    restartWebApp();
+                  }
+                });
+              } else {
+                state.dbConfig.mainDbStatus = 'error';
+                state.dbConfig.mainDbError = mainResult?.message;
+                showToast(mainResult?.message || 'Failed to save config', 'error');
+              }
+            })
+            .withFailureHandler(error => {
+              state.dbConfig.saving = false;
+              state.dbConfig.mainDbStatus = 'error';
+              state.dbConfig.mainDbError = error.message;
+              showToast(error.message || 'Failed to save config', 'error');
+            })
+            .saveDbConfig({ mainDbInput: state.dbConfig.mainDbUrl });
+        }
+        
+        function verifyDatabase() {
+          state.dbConfig.verifying = true;
+          state.dbConfig.verifyResult = null;
+          
+          google.script.run
+            .withSuccessHandler(result => {
+              state.dbConfig.verifying = false;
+              state.dbConfig.verifyResult = result;
+              
+              if (result.success) {
+                showToast('Database verified successfully', 'success');
+              }
+            })
+            .withFailureHandler(error => {
+              state.dbConfig.verifying = false;
+              state.dbConfig.verifyResult = {
+                success: false,
+                message: error.message || 'Verification failed'
+              };
+            })
+            .verifyMainDb();
+        }
+        
+        // ==================== LIFECYCLE ====================
+        onMounted(() => {
+          loadAppConfig();
+          loadThemePreference();
+          loadAnimationPreference();
+
+          // Load DB config once at startup so Settings isn't blank.
+          refreshAllDatabases();
+          
+          // Load sidebar state
+          const savedSidebar = localStorage.getItem('app-sidebar-collapsed');
+          if (savedSidebar !== null) {
+            state.sidebarCollapsed = savedSidebar === 'true';
+          }
+          
+          // Start authentication
+          authenticate();
+        });
+        
+        // Watch for settings tab changes
+        watch(() => state.settings.activeTab, (newTab) => {
+          if (newTab === 'users' && state.users.list.length === 0) {
+            loadUsers();
+          }
+        });
+        
+        // ==================== RETURN ====================
+        return {
+          state,
+          toasts,
+          animationsDisabled,
+          currentTime,
+          currentDate,
+          availableThemes,
+          quickLinksCategories,
+          filteredQuickLinks,
+          filteredQuickLinkIconOptions,
+          iconPickerDropdownStyle,
+          filteredAuditLogsAll,
+          pagedAuditLogs,
+          auditPager,
+          hasActiveFilters,
+          QUICK_LINK_ICON_OPTIONS,
+          QUICK_LINK_ICON_SVGS,
+          APP_CONFIG,
+          
+          // Methods
+          showToast,
+          openConfirmModal,
+          closeConfirmModal,
+          confirmModalProceed,
+          setTheme,
+          toggleTheme,
+          saveAnimationPreference,
+          setAnimationIntensity,
+          setSettingsTab,
+          navigateTo,
+          toggleSidebar,
+          submitSetup,
+          getIconSvg,
+          openExternal,
+          
+          // Users
+          loadUsers,
+          openUserModal,
+          closeUserModal,
+          saveUser,
+          deleteUser,
+          
+          // Quick Links
+          loadQuickLinks,
+
+          // Help and Support
+          submitSupportRequest,
+          resetSupportForm,
+          openQuickLinkModal,
+          closeQuickLinkModal,
+          onQuickLinkCategoryChange,
+          toggleIconDropdown,
+          closeIconDropdown,
+          selectQuickLinkIcon,
+          saveQuickLink,
+          deleteQuickLink,
+          deleteQuickLinkFromModal,
+          
+          // Audit
+          loadAuditLogs,
+          clearAuditFilters,
+          goToAuditJumpPage,
+          showAuditDetails,
+          formatEntityType,
+          formatDate,
+          formatTime,
+          formatDateTime,
+          formatChanges,
+          parseChanges,
+          formatFieldName,
+          
+          // Database
+          loadDbConfig,
+          refreshAllDatabases,
+          saveDbConfig,
+          verifyDatabase
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

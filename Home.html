@@ -1,0 +1,166 @@
+<!-- Home View - Welcome Dashboard -->
+<div v-show="state.currentView === 'home'" class="animate-fade-in">
+  
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div class="flex items-center gap-3">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-primary">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+      </svg>
+      <div>
+        <h1 class="text-2xl font-bold">Welcome, {{ state.user.name || 'User' }}!</h1>
+        <p class="text-base-content/60 text-sm">Your personal hub for quick access to resources</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Stats / Info Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+    
+    <!-- User Info Card -->
+    <div class="card bg-base-200 shadow md:shadow-xl">
+      <div class="card-body">
+        <h2 class="card-title text-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+          </svg>
+          Your Profile
+        </h2>
+        <div class="space-y-2 mt-2">
+          <div class="flex items-center gap-2">
+            <span class="text-base-content/60 text-sm">Email:</span>
+            <span class="font-mono text-sm">{{ state.user.email }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-base-content/60 text-sm">Role:</span>
+            <span class="badge" :class="state.isAdmin ? 'badge-primary' : 'badge-ghost'">{{ state.user.role }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions Card -->
+    <div class="card bg-base-200 shadow md:shadow-xl">
+      <div class="card-body">
+        <h2 class="card-title text-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+          </svg>
+          Quick Actions
+        </h2>
+        <div class="flex flex-wrap gap-2 mt-2">
+          <button class="btn btn-sm btn-outline btn-primary" @click="navigateTo('quicklinks')">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+            </svg>
+            Quick Links
+          </button>
+          <button class="btn btn-sm btn-outline" @click="navigateTo('settings')">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Settings
+          </button>
+          <button v-if="state.isAdmin" class="btn btn-sm btn-outline btn-secondary" @click="navigateTo('audit')">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Audit Trail
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Date & Time Card -->
+    <div class="card bg-base-200 shadow md:shadow-xl">
+      <div class="card-body">
+        <h2 class="card-title text-lg flex justify-center items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Current Time
+        </h2>
+        <div class="text-center mt-2">
+          <div class="text-3xl font-bold font-mono">{{ currentTime }}</div>
+          <div class="text-base-content/60 text-sm mt-1">{{ currentDate }}</div>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+
+  <!-- Getting Started Guide (for new users) -->
+  <div class="card bg-gradient-to-r from-primary/10 to-secondary/10 shadow-xl">
+    <div class="card-body">
+      <h2 class="card-title">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-primary">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+        </svg>
+        Welcome to {{ APP_CONFIG.name }}
+      </h2>
+      <p class="text-base-content/70">
+        {{ APP_CONFIG.name }} is your central location for managing quick links and accessing frequently used resources. 
+        Use the sidebar to navigate between different sections of the app.
+      </p>
+      <div class="divider my-2"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="flex items-start gap-3">
+          <div class="badge badge-primary badge-lg">1</div>
+          <div>
+            <h4 class="font-semibold">Quick Links</h4>
+            <p class="text-sm text-base-content/60">Add and organize frequently used links for quick access</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-3">
+          <div class="badge badge-primary badge-lg">2</div>
+          <div>
+            <h4 class="font-semibold">Settings</h4>
+            <p class="text-sm text-base-content/60">Customize your experience with themes and preferences</p>
+          </div>
+        </div>
+        <div v-if="state.isAdmin" class="flex items-start gap-3">
+          <div class="badge badge-secondary badge-lg">3</div>
+          <div>
+            <h4 class="font-semibold">User Management</h4>
+            <p class="text-sm text-base-content/60">Add and manage users who can access this app</p>
+          </div>
+        </div>
+        <div v-if="state.isAdmin" class="flex items-start gap-3">
+          <div class="badge badge-secondary badge-lg">4</div>
+          <div>
+            <h4 class="font-semibold">Audit Trail</h4>
+            <p class="text-sm text-base-content/60">Track all changes made in the system</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help and Support Shortcut -->
+  <section class="mt-6" aria-labelledby="home-support-title">
+    <div class="card bg-base-200 border border-secondary/30 shadow-xl">
+      <div class="card-body flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5">
+        <div class="flex items-start gap-3">
+          <div class="w-11 h-11 rounded-lg bg-secondary/20 flex items-center justify-center shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-secondary">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.178-.43.326-.67.442-.745.36-1.201 1.119-1.201 1.946v.131M12 17.25h.008v.008H12v-.008z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h2 id="home-support-title" class="text-lg font-bold">Need help?</h2>
+            <p class="text-sm text-base-content/60">Report a broken link or request a new resource from the support team.</p>
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary gap-2 shrink-0" @click="navigateTo('support')">
+          Open Help &amp; Support
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+</div>
