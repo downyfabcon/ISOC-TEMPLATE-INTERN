@@ -106,3 +106,21 @@ function submitSupportRequest(request) {
         return { success: false, error: 'Unable to send support request: ' + error.message };
     }
 }
+
+/**
+ * Gets the number of support requests recorded in the support sheet.
+ * @returns {Object} Support request totals for dashboard analytics.
+ */
+function getSupportRequestStats() {
+    try {
+        const mainDbId = getMainDbId();
+        if (!mainDbId) return { total: 0 };
+
+        const sheet = SpreadsheetApp.openById(mainDbId).getSheetByName('SUPPORT REQUESTS');
+        if (!sheet || sheet.getLastRow() < 2) return { total: 0 };
+        return { total: sheet.getLastRow() - 1 };
+    } catch (error) {
+        Logger.log('Error loading support request stats: ' + error.message);
+        return { total: 0 };
+    }
+}

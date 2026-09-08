@@ -551,7 +551,6 @@
         
         <!-- Page Content -->
         <main class="flex-1 p-4 md:p-6 overflow-auto">
-
           <!-- Shared dashboard actions -->
           <header class="flex justify-end items-center gap-2 mb-4">
             <button
@@ -833,17 +832,22 @@
             animationsEnabled: true,
             animationIntensity: 'engaging',
             timezone: 'Asia/Manila',
-            language: 'en',
-            account: {
-              compactMode: false,
-              emailAlerts: true
-            }
+            language: 'en'
           },
 
           dashboardRefreshing: false,
           notifications: {
             open: false,
             list: []
+          },
+          usage: {
+            linkClicks: []
+          },
+          analytics: {
+            period: 'monthly',
+            year: new Date().getFullYear(),
+            month: new Date().getMonth() + 1,
+            day: new Date().getDate()
           },
           
           // Users (admin)
@@ -858,7 +862,7 @@
             form: {
               email: '',
               name: '',
-              role: 'user',
+              role: 'viewer',
               rowIndex: null
             }
           },
@@ -892,6 +896,10 @@
             submitting: false,
             success: null,
             error: null,
+            stats: {
+              total: 0,
+              loading: false
+            },
             form: {
               type: 'broken_link',
               subject: '',
@@ -946,22 +954,47 @@
           state.settings.animationIntensity === 'disabled' || state.settings.animationsEnabled === false
         ));
 
-        const analyticsStats = computed(() => ({
-          links: state.quickLinks.list.length,
-          users: state.users.list.length || (state.user.email ? 1 : 0),
-          alerts: state.notifications.list.length
-        }));
+        const analyticsMonths = computed(() => Array.from({ length: 12 }, (_, index) => ({
+          value: index + 1,
+          label: new Date(2000, index, 1).toLocaleString('en-US', { month: 'short' })
+        })));
+
+        const analyticsDays = computed(() => {
+          const daysInMonth = new Date(state.analytics.year, state.analytics.month, 0).getDate();
+          if (state.analytics.day > daysInMonth) state.analytics.day = daysInMonth;
+          return Array.from({ length: daysInMonth }, (_, index) => index + 1);
+        });
+
+        const analyticsYears = computed(() => {
+          const currentYear = new Date().getFullYear();
+          const recordedYears = state.usage.linkClicks.map(item => Number(item.date.slice(0, 4))).filter(Boolean);
+          return Array.from(new Set([currentYear, ...recordedYears])).sort((a, b) => b - a);
+        });
+
+        function isAnalyticsDateSelected(dateString) {
+          const date = new Date(`${dateString}T00:00:00`);
+          if (date.getFullYear() !== state.analytics.year) return false;
+          if (state.analytics.period === 'yearly') return true;
+          if (date.getMonth() + 1 !== state.analytics.month) return false;
+          return state.analytics.period !== 'daily' || date.getDate() === state.analytics.day;
+        }
 
         const analyticsBars = computed(() => {
-          const base = Math.max(1, state.quickLinks.list.length);
-          const values = [base, base + 1, Math.max(1, base - 1), base + 2, base, base + 3, Math.max(1, base - 2)];
-          const max = Math.max(...values);
+          const values = state.usage.linkClicks.filter(item => isAnalyticsDateSelected(item.date)).map(item => item.count);
+          while (values.length < 7) values.push(0);
+          const max = Math.max(1, ...values);
           return values.map((value, index) => ({
             label: ['M', 'T', 'W', 'T', 'F', 'S', 'S'][index],
             value,
             height: Math.round((value / max) * 100)
           }));
         });
+
+        const analyticsSummary = computed(() => ({
+          total: state.usage.linkClicks.filter(item => isAnalyticsDateSelected(item.date)).reduce((total, item) => total + item.count, 0),
+          support: state.support.stats.total,
+          active: state.users.list.length || (state.user.email ? 1 : 0)
+        }));
         
         // ==================== TOAST SYSTEM ====================
         const toasts = reactive([]);
@@ -1260,6 +1293,13 @@
             const trimmed = url.trim();
             if (!trimmed) return;
 
+            const today = new Date().toISOString().slice(0, 10);
+            const existing = state.usage.linkClicks.find(item => item.date === today);
+            if (existing) existing.count += 1;
+            else state.usage.linkClicks.push({ date: today, count: 1 });
+            state.usage.linkClicks = state.usage.linkClicks.slice(-3650);
+            localStorage.setItem('app-link-clicks', JSON.stringify(state.usage.linkClicks));
+
             const opener = globalThis?.open || globalThis?.window?.open;
             if (typeof opener === 'function') {
               opener.call(globalThis, trimmed, '_blank');
@@ -1278,23 +1318,531 @@
         // ==================== TIME DISPLAY ====================
         const currentTime = Vue.ref('');
         const currentDate = Vue.ref('');
+        const currentTimezoneOffset = Vue.ref('GMT+8');
+
+        const translations = {
+          en: {
+            personalize: 'Personalize how ISOC Template behaves for you',
+            language: 'Language',
+            'Home': 'Home',
+            'Quick Links': 'Quick Links',
+            'Help & Support': 'Help & Support',
+            'Settings': 'Settings',
+            'Audit Trail': 'Audit Trail',
+            'Welcome, ': 'Welcome, ',
+            'Your personal hub for quick access to resources': 'Your personal hub for quick access to resources',
+            'Your personal hub for quick access to resources AND MORE': 'Your personal hub for quick access to resources AND MORE',
+            'Your Profile': 'Your Profile',
+            'Quick Actions': 'Quick Actions',
+            'Current Time': 'Current Time',
+            'Activity Analytics': 'Activity Analytics',
+            'Total': 'Total',
+            'Need support': 'Need support',
+            'Active users': 'Active users',
+            'Welcome to ISOC Template': 'Welcome to ISOC Template',
+            'Add and organize frequently used links for quick access': 'Add and organize frequently used links for quick access',
+            'Customize your experience with themes and preferences': 'Customize your experience with themes and preferences',
+            'Add and manage users who can access this app': 'Add and manage users who can access this app',
+            'Track all changes made in the system': 'Track all changes made in the system',
+            'Need help?': 'Need help?',
+            'Report a broken link or request a new resource from the support team.': 'Report a broken link or request a new resource from the support team.',
+            'Open Help & Support': 'Open Help & Support',
+            'Refresh': 'Refresh',
+            'Recent alerts': 'Recent alerts',
+            'Mark read': 'Mark read',
+            'No recent alerts': 'No recent alerts',
+            'Search links...': 'Search links...',
+            'All Categories': 'All Categories',
+            'Access frequently used links': 'Access frequently used links',
+            'Retry': 'Retry',
+            'No matching links': 'No matching links',
+            'No Quick Links yet': 'No Quick Links yet',
+            'Help & Support': 'Help & Support',
+            'Report a broken link or request a new resource.': 'Report a broken link or request a new resource.',
+            'Contact Support': 'Contact Support',
+            'Your message will be sent to the application administrators.': 'Your message will be sent to the application administrators.',
+            'Request type': 'Request type',
+            'Report broken link': 'Report broken link',
+            'Request new resource': 'Request new resource',
+            'Other support': 'Other support',
+            'Subject': 'Subject',
+            'Link URL': 'Link URL',
+            'Description': 'Description',
+            'Clear': 'Clear',
+            'Send Request': 'Send Request',
+            'Sending...': 'Sending...',
+            'Before sending': 'Before sending',
+            'For broken links, include the link URL or name.': 'For broken links, include the link URL or name.',
+            'For new resources, explain what should be added and why.': 'For new resources, explain what should be added and why.',
+            'Administrators will review your request.': 'Administrators will review your request.',
+            'Track all system changes': 'Track all system changes',
+            'Date Range': 'Date Range',
+            'All Types': 'All Types',
+            'All Actions': 'All Actions',
+            'Search': 'Search',
+            'Search by user or details...': 'Search by user or details...',
+            'No audit logs found': 'No audit logs found',
+            'Timestamp': 'Timestamp',
+            'User': 'User',
+            'Action': 'Action',
+            'Entity': 'Entity',
+            'Summary': 'Summary',
+            'Items per page': 'Items per page',
+            'Jump to': 'Jump to',
+            'Audit Log Details': 'Audit Log Details',
+            'Changes': 'Changes',
+            'Before': 'Before',
+            'After': 'After',
+            'Close': 'Close',
+            'General': 'General',
+            'Users': 'Users',
+            'Database': 'Database',
+            'Configure your preferences': 'Configure your preferences',
+            'Choose a color theme for the app': 'Choose a color theme for the app',
+            'Control animation intensity': 'Control animation intensity',
+            'Control animation intensity throughout the app': 'Control animation intensity throughout the app',
+            'Subtle': 'Subtle',
+            'Engaging': 'Engaging',
+            'Disabled': 'Disabled',
+            'Quick, minimal animations': 'Quick, minimal animations',
+            'Full, smooth animations': 'Full, smooth animations',
+            'No animations': 'No animations',
+            'User Management': 'User Management',
+            'Database configuration': 'Database configuration',
+            'Main Database': 'Main Database',
+            'Save': 'Save',
+            'Verify': 'Verify',
+            'Add User': 'Add User',
+            'Edit': 'Edit',
+            'Delete': 'Delete',
+            'Email': 'Email',
+            'Name': 'Name',
+            'Role': 'Role',
+            'Actions': 'Actions',
+            'English': 'English',
+            'Filipino': 'Filipino',
+            'Theme': 'Theme',
+            'Animations': 'Animations',
+            'Control animation intensity': 'Control animation intensity',
+            'Disable animations for better performance on slower devices': 'Disable animations for better performance on slower devices',
+            'Connected': 'Connected',
+            'Error': 'Error',
+            'Spreadsheet URL or ID': 'Spreadsheet URL or ID',
+            'Required sheets: USERS, AUDIT LOGS, QUICK LINKS': 'Required sheets: USERS, AUDIT LOGS, QUICK LINKS',
+            'Verify': 'Verify',
+            'Verifying...': 'Verifying...',
+            'Saving...': 'Saving...',
+            'Deleting...': 'Deleting...',
+            'Edit User': 'Edit User',
+            'Add User': 'Add User',
+            'Create': 'Create',
+            'Update': 'Update'
+          },
+          fil: {
+            personalize: 'Iangkop ang paggamit ng ISOC Template para sa iyo',
+            language: 'Wika',
+            Home: 'Home',
+            'Quick Links': 'Mabilis na Link',
+            'Help & Support': 'Tulong at Suporta',
+            Settings: 'Mga Setting',
+            'Audit Trail': 'Talaan ng Pagbabago',
+            'Welcome, ': 'Maligayang pagdating, ',
+            'Your personal hub for quick access to resources': 'Iyong sentro para sa mabilis na pag-access sa mga resource',
+            'Your personal hub for quick access to resources AND MORE': 'Iyong sentro para sa mabilis na pag-access sa mga resource AT HIGIT PA',
+            'Your Profile': 'Iyong Profile',
+            'Quick Actions': 'Mabilis na Aksyon',
+            'Current Time': 'Kasalukuyang Oras',
+            'Activity Analytics': 'Pagsusuri ng Aktibidad',
+            Total: 'Kabuuan',
+            'Need support': 'Kailangan ng suporta',
+            'Active users': 'Aktibong user',
+            'Welcome to ISOC Template': 'Maligayang pagdating sa ISOC Template',
+            'Add and organize frequently used links for quick access': 'Magdagdag at mag-ayos ng mga link para sa mabilis na access',
+            'Customize your experience with themes and preferences': 'Iangkop ang iyong karanasan gamit ang mga theme at preference',
+            'Add and manage users who can access this app': 'Magdagdag at mamahala ng mga user na maaaring gumamit ng app',
+            'Track all changes made in the system': 'Subaybayan ang lahat ng pagbabago sa system',
+            'Need help?': 'Kailangan ng tulong?',
+            'Report a broken link or request a new resource from the support team.': 'Mag-ulat ng sirang link o humiling ng bagong resource sa support team.',
+            'Open Help & Support': 'Buksan ang Tulong at Suporta',
+            Refresh: 'I-refresh',
+            'Recent alerts': 'Mga kamakailang alerto',
+            'Mark read': 'Markahang nabasa',
+            'No recent alerts': 'Walang kamakailang alerto',
+            'Search links...': 'Maghanap ng mga link...',
+            'All Categories': 'Lahat ng Kategorya',
+            'Access frequently used links': 'I-access ang mga madalas gamitin na link',
+            Retry: 'Subukan muli',
+            'No matching links': 'Walang tumutugmang link',
+            'No Quick Links yet': 'Wala pang Quick Link',
+            'Report a broken link or request a new resource.': 'Mag-ulat ng sirang link o humiling ng bagong resource.',
+            'Contact Support': 'Makipag-ugnayan sa Suporta',
+            'Your message will be sent to the application administrators.': 'Ipapadala ang iyong mensahe sa mga administrator ng application.',
+            'Request type': 'Uri ng kahilingan',
+            'Report broken link': 'I-ulat ang sirang link',
+            'Request new resource': 'Humiling ng bagong resource',
+            'Other support': 'Iba pang suporta',
+            Subject: 'Paksa',
+            'Link URL': 'URL ng Link',
+            Description: 'Paglalarawan',
+            Clear: 'I-clear',
+            'Send Request': 'Ipadala ang Kahilingan',
+            'Sending...': 'Ipinapadala...',
+            'Before sending': 'Bago ipadala',
+            'For broken links, include the link URL or name.': 'Para sa sirang link, isama ang URL o pangalan ng link.',
+            'For new resources, explain what should be added and why.': 'Para sa bagong resource, ipaliwanag kung ano at bakit ito dapat idagdag.',
+            'Administrators will review your request.': 'Susuriin ng mga administrator ang iyong kahilingan.',
+            'Track all system changes': 'Subaybayan ang lahat ng pagbabago sa system',
+            'Date Range': 'Saklaw ng Petsa',
+            'All Types': 'Lahat ng Uri',
+            'All Actions': 'Lahat ng Aksyon',
+            Search: 'Maghanap',
+            'Search by user or details...': 'Maghanap ayon sa user o detalye...',
+            'No audit logs found': 'Walang nahanap na audit log',
+            Timestamp: 'Oras',
+            User: 'User',
+            Action: 'Aksyon',
+            Entity: 'Entity',
+            Summary: 'Buod',
+            'Items per page': 'Bilang bawat pahina',
+            'Jump to': 'Pumunta sa',
+            'Audit Log Details': 'Detalye ng Audit Log',
+            Changes: 'Mga Pagbabago',
+            Before: 'Bago',
+            After: 'Pagkatapos',
+            Close: 'Isara',
+            General: 'Pangkalahatan',
+            Users: 'Mga User',
+            Database: 'Database',
+            'Configure your preferences': 'I-configure ang iyong mga preference',
+            'Choose a color theme for the app': 'Pumili ng color theme para sa app',
+            'Control animation intensity': 'Kontrolin ang antas ng animation',
+            'Control animation intensity throughout the app': 'Kontrolin ang antas ng animation sa buong app',
+            Subtle: 'Banayad',
+            Engaging: 'Masigla',
+            Disabled: 'Naka-disable',
+            'Quick, minimal animations': 'Mabilis at kaunting animation',
+            'Full, smooth animations': 'Buong smooth na animation',
+            'No animations': 'Walang animation',
+            'User Management': 'Pamamahala ng User',
+            'Main Database': 'Pangunahing Database',
+            Theme: 'Theme',
+            Animations: 'Mga Animation',
+            'Control animation intensity': 'Kontrolin ang antas ng animation',
+            'Disable animations for better performance on slower devices': 'I-disable ang animation para sa mas mahusay na performance',
+            Connected: 'Nakakonekta',
+            Error: 'Error',
+            'Spreadsheet URL or ID': 'URL o ID ng Spreadsheet',
+            'Required sheets: USERS, AUDIT LOGS, QUICK LINKS': 'Mga kinakailangang sheet: USERS, AUDIT LOGS, QUICK LINKS',
+            Verifying: 'Bine-verify...',
+            'Verifying...': 'Bine-verify...',
+            'Saving...': 'Sine-save...',
+            'Deleting...': 'Tinatanggal...',
+            'Edit User': 'I-edit ang User',
+            'Add User': 'Magdagdag ng User',
+            Create: 'Gumawa',
+            Update: 'I-update',
+            Save: 'I-save',
+            Verify: 'I-verify',
+            'Add User': 'Magdagdag ng User',
+            Edit: 'I-edit',
+            Delete: 'Tanggalin',
+            Email: 'Email',
+            Name: 'Pangalan',
+            Role: 'Tungkulin',
+            Actions: 'Mga Aksyon',
+            English: 'Ingles',
+            Filipino: 'Filipino',
+            Daily: 'Araw-araw',
+            Month: 'Buwan',
+            Year: 'Taon',
+            'Initial Setup Required': 'Kailangan ang Paunang Setup',
+            'Configure the Main Database to get started. This will store users, audit logs, and quick links.': 'I-configure ang Pangunahing Database para makapagsimula. Dito ise-save ang mga user, audit log, at quick link.',
+            'Main Database Spreadsheet (URL or ID)': 'Spreadsheet ng Pangunahing Database (URL o ID)',
+            'Sheets will be created: USERS, AUDIT LOGS, QUICK LINKS': 'Gagawin ang mga sheet: USERS, AUDIT LOGS, QUICK LINKS',
+            'Your Email': 'Iyong Email',
+            'Your Name': 'Iyong Pangalan',
+            'You will be registered as the first admin': 'Irerehistro ka bilang unang admin',
+            'Loading your dashboard...': 'Ikinakarga ang iyong dashboard...',
+            'Access Denied': 'Hindi Pinayagan ang Access',
+            'Authentication Error': 'Error sa Authentication',
+            'Logged in as:': 'Naka-login bilang:',
+            'Select Icon': 'Pumili ng Icon',
+            'Search icons...': 'Maghanap ng icon...',
+            'Name': 'Pangalan',
+            'URL': 'URL',
+            'Category': 'Kategorya',
+            'Select...': 'Pumili...',
+            'New Category...': 'Bagong Kategorya...',
+            'New category name...': 'Pangalan ng bagong kategorya...',
+            'Group links by category for easier navigation': 'Pangkatin ang mga link ayon sa kategorya para mas madaling mag-navigate',
+            'Icon': 'Icon',
+            'Choose an icon to represent this link': 'Pumili ng icon para sa link na ito',
+            'Add Link': 'Magdagdag ng Link',
+            'Edit Link': 'I-edit ang Link',
+            'Save Link': 'I-save ang Link',
+            'Cancel': 'Kanselahin',
+            'Open Spreadsheet': 'Buksan ang Spreadsheet',
+            'Verify connection and create missing sheets': 'I-verify ang connection at gumawa ng nawawalang sheet',
+            'Stores users, audit logs, and quick links': 'Naglalaman ng mga user, audit log, at quick link',
+            'Setup Instructions': 'Mga Tagubilin sa Setup',
+            'Create a new Google Spreadsheet or use an existing one': 'Gumawa ng bagong Google Spreadsheet o gumamit ng mayroon na',
+            'Paste the spreadsheet URL or ID above': 'I-paste ang URL o ID ng spreadsheet sa itaas',
+            'Click Save to store the configuration': 'I-click ang Save para i-save ang configuration',
+            'Click Verify to test the connection and create required sheets': 'I-click ang Verify para subukan ang connection at gumawa ng mga kinakailangang sheet',
+            'You cannot change your own role': 'Hindi mo maaaring baguhin ang sarili mong role',
+            'Admin': 'Admin',
+            'No icons match your search.': 'Walang tumutugmang icon sa iyong paghahanap.',
+            'Select an icon': 'Pumili ng icon'
+          }
+        };
+
+        Object.assign(translations.en, {
+          'Access frequently used links': 'Access frequently used links',
+          'Add Link': 'Add Link',
+          'Add First Link': 'Add First Link',
+          'Try adjusting your search or filter criteria': 'Try adjusting your search or filter criteria',
+          'Add your first quick link to get started!': 'Add your first quick link to get started!',
+          'Uncategorized': 'Uncategorized',
+          'Edit Link': 'Edit Link',
+          'Back to Home': 'Back to Home',
+          'Try adjusting your filters': 'Try adjusting your filters',
+          'This activity will appear here as changes are made': 'This activity will appear here as changes are made',
+          'View Details': 'View Details',
+          'Details': 'Details',
+          'to': 'to',
+          'Page': 'Page',
+          'Go': 'Go',
+          'First page': 'First page',
+          'Previous page': 'Previous page',
+          'Next page': 'Next page',
+          'Last page': 'Last page',
+          'Back to Home': 'Back to Home',
+          'Search icons...': 'Search icons...',
+          'Notifications': 'Notifications',
+          'Refresh dashboard data': 'Refresh dashboard data',
+          'Choose timezone': 'Choose timezone',
+          'Choose a timezone': 'Choose a timezone',
+          'Link activity': 'Link activity',
+          'Current session': 'Current session',
+          'available resources': 'available resources',
+          'registered accounts': 'registered accounts',
+          'recent notifications': 'recent notifications',
+          'Live session': 'Live session',
+          'Daily': 'Daily',
+          'Month': 'Month',
+          'Year': 'Year',
+          'No recent alerts': 'No recent alerts',
+          'Mark read': 'Mark read',
+          'Close': 'Close',
+          'Confirm': 'Confirm',
+          'Cancel': 'Cancel',
+          'Working...': 'Working...',
+          'Restart now': 'Restart now',
+          'Later': 'Later'
+        });
+
+        Object.assign(translations.fil, {
+          'Access frequently used links': 'I-access ang mga madalas gamitin na link',
+          'Add Link': 'Magdagdag ng Link',
+          'Add First Link': 'Magdagdag ng Unang Link',
+          'Try adjusting your search or filter criteria': 'Subukang baguhin ang paghahanap o filter',
+          'Add your first quick link to get started!': 'Magdagdag ng unang quick link para makapagsimula!',
+          'Uncategorized': 'Walang Kategorya',
+          'Edit Link': 'I-edit ang Link',
+          'Back to Home': 'Bumalik sa Home',
+          'Try adjusting your filters': 'Subukang baguhin ang iyong mga filter',
+          'This activity will appear here as changes are made': 'Lilitaw dito ang aktibidad habang may mga pagbabago',
+          'View Details': 'Tingnan ang Detalye',
+          'Details': 'Detalye',
+          to: 'hanggang',
+          Page: 'Pahina',
+          Go: 'Pumunta',
+          'First page': 'Unang pahina',
+          'Previous page': 'Nakaraang pahina',
+          'Next page': 'Susunod na pahina',
+          'Last page': 'Huling pahina',
+          'Search icons...': 'Maghanap ng icon...',
+          Notifications: 'Mga Notification',
+          'Refresh dashboard data': 'I-refresh ang dashboard',
+          'Choose timezone': 'Pumili ng timezone',
+          'Choose a timezone': 'Pumili ng timezone',
+          'Link activity': 'Aktibidad ng link',
+          'Current session': 'Kasalukuyang session',
+          'available resources': 'available na resource',
+          'registered accounts': 'rehistradong account',
+          'recent notifications': 'mga kamakailang notification',
+          'Live session': 'Live na session',
+          Daily: 'Araw-araw',
+          Month: 'Buwan',
+          Year: 'Taon',
+          'No recent alerts': 'Walang kamakailang alerto',
+          'Mark read': 'Markahang nabasa',
+          Close: 'Isara',
+          Confirm: 'Kumpirmahin',
+          Cancel: 'Kanselahin',
+          'Working...': 'Ginagawa...',
+          'Restart now': 'I-restart ngayon',
+          Later: 'Mamaya'
+        });
+
+        Object.assign(translations.en, {
+          CREATE: 'Create',
+          UPDATE: 'Update',
+          DELETE: 'Delete',
+          USER: 'User',
+          DB_CONFIG: 'Database Config',
+          QUICK_LINK: 'Quick Link',
+          '(empty)': '(empty)'
+        });
+        Object.assign(translations.fil, {
+          CREATE: 'Gumawa',
+          UPDATE: 'I-update',
+          DELETE: 'Tanggalin',
+          USER: 'User',
+          DB_CONFIG: 'Database Config',
+          QUICK_LINK: 'Quick Link',
+          '(empty)': '(walang laman)'
+        });
+
+        function t(key) {
+  const lang = state.settings.language || 'en';
+  return translations[lang][key] || key;
+}
+
+        const localizedTextSources = new WeakMap();
+        const localizedTextSuffixes = new WeakMap();
+        let languageRefreshInProgress = false;
+        let languageObserver = null;
+
+        function getTranslationKey(text) {
+          const trimmed = text.trim();
+          if (!trimmed) return '';
+          if (trimmed.startsWith('Welcome, ') || trimmed.startsWith('Maligayang pagdating, ')) return 'Welcome, ';
+          if (translations.en[trimmed]) return trimmed;
+          if (translations.fil[trimmed]) return Object.keys(translations.fil).find(key => translations.fil[key] === trimmed) || trimmed;
+          const punctuation = /[:!?]$/.test(trimmed) ? trimmed.slice(0, -1) : trimmed;
+          if (translations.en[punctuation]) return punctuation;
+          if (translations.fil[punctuation]) return Object.keys(translations.fil).find(key => translations.fil[key] === punctuation) || punctuation;
+          return Object.keys(translations.en).find(key => translations.en[key] === trimmed) ||
+            Object.keys(translations.fil).find(key => translations.fil[key] === trimmed) || trimmed;
+        }
+
+        function translateText(text, sourceKey) {
+          const trimmed = text.trim();
+          if (!trimmed) return text;
+          let translated = t(sourceKey || getTranslationKey(trimmed));
+          const dynamicPrefixes = [
+            ['Created quick link: ', 'Nalikha ang quick link: '],
+            ['Updated quick link: ', 'Na-update ang quick link: '],
+            ['Deleted quick link: ', 'Tinanggal ang quick link: '],
+            ['Created user: ', 'Nalikha ang user: '],
+            ['Updated user: ', 'Na-update ang user: '],
+            ['Deleted user: ', 'Tinanggal ang user: '],
+            ['This will permanently delete:', 'Permanenteng tatanggalin ito:']
+          ];
+          if (state.settings.language === 'fil') {
+            const dynamicPrefix = dynamicPrefixes.find(([english]) => trimmed.startsWith(english));
+            if (dynamicPrefix) translated = dynamicPrefix[1] + trimmed.slice(dynamicPrefix[0].length);
+          } else {
+            const dynamicPrefix = dynamicPrefixes.find(([, filipino]) => trimmed.startsWith(filipino));
+            if (dynamicPrefix) translated = dynamicPrefix[0] + trimmed.slice(dynamicPrefix[1].length);
+          }
+          if (trimmed.startsWith('Welcome, ')) translated = t('Welcome, ') + trimmed.slice(9).replace(/!+$/, '') + '!';
+          if (trimmed.startsWith('Maligayang pagdating, ')) translated = t('Welcome, ') + trimmed.slice(22).replace(/!+$/, '') + '!';
+          if (sourceKey && sourceKey !== trimmed && !trimmed.startsWith('Welcome, ') && !trimmed.startsWith('Maligayang pagdating, ')) {
+            translated += localizedTextSuffixes.get(sourceKey) || '';
+          }
+          return text.replace(trimmed, translated);
+        }
+
+        function refreshLanguageAfterRender() {
+          nextTick().then(() => {
+            applyLanguageToPage();
+            window.setTimeout(applyLanguageToPage, 0);
+            window.setTimeout(applyLanguageToPage, 80);
+            window.setTimeout(applyLanguageToPage, 300);
+            window.setTimeout(applyLanguageToPage, 1000);
+          });
+        }
+
+        function applyLanguageToPage() {
+          const root = document.getElementById('app');
+          if (!root) return;
+          if (languageRefreshInProgress) return;
+          languageRefreshInProgress = true;
+          try {
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+          const textNodes = [];
+          while (walker.nextNode()) textNodes.push(walker.currentNode);
+          textNodes.forEach(node => {
+            if (node.parentElement?.closest('svg')) return;
+            const current = node.nodeValue || '';
+            let sourceKey = localizedTextSources.get(node);
+            if (!sourceKey) {
+              sourceKey = getTranslationKey(current);
+              localizedTextSources.set(node, sourceKey);
+              const suffixMatch = current.trim().match(/([:!?])\s*$/);
+              localizedTextSuffixes.set(sourceKey, suffixMatch ? suffixMatch[1] : '');
+            }
+            node.nodeValue = translateText(current, sourceKey);
+          });
+          root.querySelectorAll('input, textarea, select').forEach(element => {
+            const placeholder = element.getAttribute('placeholder');
+            if (!placeholder) return;
+            const sourceKey = element.dataset.i18nPlaceholder || getTranslationKey(placeholder);
+            element.dataset.i18nPlaceholder = sourceKey;
+            element.setAttribute('placeholder', translateText(placeholder, sourceKey));
+          });
+          root.querySelectorAll('[title], [aria-label]').forEach(element => {
+            if (element.closest('svg')) return;
+            ['title', 'aria-label'].forEach(attribute => {
+              const value = element.getAttribute(attribute);
+              if (!value) return;
+              const keyAttribute = `i18n${attribute.replace('-', '')}`;
+              const sourceKey = element.dataset[keyAttribute] || getTranslationKey(value);
+              element.dataset[keyAttribute] = sourceKey;
+              element.setAttribute(attribute, translateText(value, sourceKey));
+            });
+          });
+          document.documentElement.lang = state.settings.language === 'fil' ? 'fil' : 'en';
+          } finally {
+            languageRefreshInProgress = false;
+          }
+        }
+
+        function startLanguageObserver() {
+          const root = document.getElementById('app');
+          if (!root || languageObserver) return;
+          languageObserver = new MutationObserver(mutations => {
+            if (languageRefreshInProgress) return;
+            if (mutations.some(mutation => mutation.addedNodes.length > 0 || mutation.type === 'characterData')) {
+              window.setTimeout(applyLanguageToPage, 0);
+            }
+          });
+          languageObserver.observe(root, { childList: true, characterData: true, subtree: true });
+        }
         
         const timezoneOptions = [
-          { value: 'Asia/Manila', label: 'Manila (PHT, UTC+8)' },
-          { value: 'Asia/Tokyo', label: 'Tokyo (JST, UTC+9)' },
-          { value: 'Asia/Singapore', label: 'Singapore (SGT, UTC+8)' },
-          { value: 'Australia/Sydney', label: 'Sydney (AET)' },
-          { value: 'Europe/London', label: 'London (GMT/BST)' },
-          { value: 'America/New_York', label: 'New York (ET)' },
-          { value: 'America/Los_Angeles', label: 'Los Angeles (PT)' },
-          { value: 'UTC', label: 'UTC' }
+          { value: 'Asia/Manila', label: 'Manila (PHT, UTC+8)', shortLabel: 'Manila (PHT)', code: 'PHT' },
+          { value: 'Asia/Tokyo', label: 'Tokyo (JST, UTC+9)', shortLabel: 'Tokyo (JST)', code: 'JST' },
+          { value: 'Asia/Singapore', label: 'Singapore (SGT, UTC+8)', shortLabel: 'Singapore (SGT)', code: 'SGT' },
+          { value: 'Australia/Sydney', label: 'Sydney (AET)', shortLabel: 'Sydney (AET)', code: 'AET' },
+          { value: 'Europe/London', label: 'London (GMT/BST)', shortLabel: 'London (GMT)', code: 'GMT' },
+          { value: 'America/New_York', label: 'New York (ET)', shortLabel: 'New York (ET)', code: 'ET' },
+          { value: 'America/Los_Angeles', label: 'Los Angeles (PT)', shortLabel: 'Los Angeles (PT)', code: 'PT' },
+          { value: 'UTC', label: 'UTC', shortLabel: 'UTC', code: 'UTC' }
         ];
 
         function updateTime() {
           const now = new Date();
           const options = { timeZone: state.settings.timezone, hour: '2-digit', minute: '2-digit', second: '2-digit' };
-          currentTime.value = now.toLocaleTimeString(state.settings.language === 'fil' ? 'fil-PH' : 'en-US', options);
-          currentDate.value = now.toLocaleDateString(state.settings.language === 'fil' ? 'fil-PH' : 'en-US', { timeZone: state.settings.timezone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+          const locale = state.settings.language === 'fil' ? 'fil-PH' : 'en-US';
+          currentTime.value = now.toLocaleTimeString(locale, options);
+          currentDate.value = now.toLocaleDateString(locale, { timeZone: state.settings.timezone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+          const offsetPart = new Intl.DateTimeFormat('en-US', { timeZone: state.settings.timezone, timeZoneName: 'shortOffset' })
+            .formatToParts(now)
+            .find(part => part.type === 'timeZoneName')?.value || 'GMT+8';
+          currentTimezoneOffset.value = offsetPart.replace(/^GMT([+-])0(\d)$/, 'GMT$1$2').replace(':00', '');
         }
 
         function setTimezone(timezone) {
@@ -1307,13 +1855,21 @@
         function setLanguage(language) {
           state.settings.language = language;
           localStorage.setItem('app-language', language);
+          document.documentElement.lang = language === 'fil' ? 'fil' : 'en';
           updateTime();
+          refreshLanguageAfterRender();
           showToast('Language preference updated', 'success');
         }
 
-        function saveAccountPreferences() {
-          localStorage.setItem('app-account-preferences', JSON.stringify(state.settings.account));
-          showToast('Account preferences saved', 'success');
+        function loadSupportStats() {
+          state.support.stats.loading = true;
+          google.script.run
+            .withSuccessHandler(result => {
+              state.support.stats.loading = false;
+              state.support.stats.total = Number(result?.total) || 0;
+            })
+            .withFailureHandler(() => { state.support.stats.loading = false; })
+            .getSupportRequestStats();
         }
 
         function loadUserPreferences() {
@@ -1321,9 +1877,10 @@
           const language = localStorage.getItem('app-language');
           if (timezone) state.settings.timezone = timezone;
           if (language) state.settings.language = language;
+          document.documentElement.lang = state.settings.language === 'fil' ? 'fil' : 'en';
           try {
-            const account = JSON.parse(localStorage.getItem('app-account-preferences') || 'null');
-            if (account && typeof account === 'object') Object.assign(state.settings.account, account);
+            const clicks = JSON.parse(localStorage.getItem('app-link-clicks') || '[]');
+            if (Array.isArray(clicks)) state.usage.linkClicks = clicks.slice(-3650);
           } catch (e) {
             // Use defaults when saved preferences are unavailable.
           }
@@ -1575,6 +2132,8 @@
         
         // ==================== NAVIGATION ====================
         function navigateTo(view) {
+          if (view === 'support' && state.isAdmin) view = 'home';
+          if ((view === 'settings' || view === 'audit') && !state.isAdmin) view = 'home';
           state.currentView = view;
           
           // Close mobile drawer
@@ -1612,6 +2171,7 @@
               state.support.submitting = false;
               if (result && result.success) {
                 state.support.success = result.message || 'Your support request was sent.';
+                loadSupportStats();
                 state.support.form = {
                   type: 'broken_link',
                   subject: '',
@@ -1959,7 +2519,7 @@
             state.users.form = {
               email: '',
               name: '',
-              role: 'user',
+              role: 'viewer',
               id: null
             };
           }
@@ -2615,6 +3175,7 @@
         onMounted(() => {
           loadUserPreferences();
           loadNotifications();
+          loadSupportStats();
           updateTime();
           loadAppConfig();
           loadThemePreference();
@@ -2631,6 +3192,8 @@
           
           // Start authentication
           authenticate();
+          startLanguageObserver();
+          refreshLanguageAfterRender();
         });
         
         // Watch for settings tab changes
@@ -2638,6 +3201,18 @@
           if (newTab === 'users' && state.users.list.length === 0) {
             loadUsers();
           }
+        });
+
+        watch(() => state.settings.language, () => {
+          refreshLanguageAfterRender();
+        });
+
+        watch(() => state.isAuthenticated, () => {
+          refreshLanguageAfterRender();
+        });
+
+        watch(() => state.currentView, () => {
+          refreshLanguageAfterRender();
         });
         
         // ==================== RETURN ====================
@@ -2647,15 +3222,19 @@
           animationsDisabled,
           currentTime,
           currentDate,
-          analyticsStats,
-          analyticsBars,
+          currentTimezoneOffset,
+          analyticsSummary,
+          analyticsMonths,
+          analyticsDays,
+          analyticsYears,
           timezoneOptions,
           unreadNotificationCount,
           refreshDashboard,
           markNotificationsRead,
           setTimezone,
           setLanguage,
-          saveAccountPreferences,
+          t,
+          loadSupportStats,
           availableThemes,
           quickLinksCategories,
           filteredQuickLinks,
