@@ -1,0 +1,159 @@
+<!-- Quick Links View -->
+<div v-show="state.currentView === 'quicklinks'" class="animate-fade-in">
+  
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div class="flex items-center gap-3">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-primary">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+      </svg>
+      <div>
+        <h1 class="text-2xl font-bold">Quick Links</h1>
+        <p class="text-base-content/60 text-sm">Access frequently used links</p>
+      </div>
+    </div>
+    
+    <!-- Add New Button (Admin Only) -->
+    <div class="flex items-center gap-2">
+      <button 
+        class="btn btn-outline gap-2"
+        @click="loadQuickLinks()"
+        :disabled="state.quickLinks.loading"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" :class="{ 'animate-spin': state.quickLinks.loading }">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+        </svg>
+        Refresh
+      </button>
+      <button 
+        v-if="state.isAdmin"
+        class="btn btn-primary gap-2"
+        @click="openQuickLinkModal()"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Add Link
+      </button>
+    </div>
+  </div>
+
+  <!-- Search and Filter Bar -->
+  <div class="flex flex-col sm:flex-row gap-3 mb-6">
+    <!-- Search -->
+    <div class="flex-1">
+      <div class="relative">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-base-content/50">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+        </span>
+        <input 
+          type="text" 
+          v-model="state.quickLinks.searchQuery"
+          placeholder="Search links..." 
+          class="input w-full pl-10"
+        />
+      </div>
+    </div>
+    
+    <!-- Category Filter -->
+    <select 
+      v-model="state.quickLinks.filterCategory"
+      class="select w-full sm:w-48"
+    >
+      <option value="">All Categories</option>
+      <option v-for="category in quickLinksCategories" :key="category" :value="category">
+        {{ category }}
+      </option>
+    </select>
+  </div>
+
+  <transition name="view-swap" mode="out-in">
+    <!-- Loading State -->
+    <div v-if="state.quickLinks.loading" key="loading" class="flex justify-center items-center py-16">
+      <span class="loading loading-spinner loading-lg text-primary"></span>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="state.quickLinks.error" key="error" class="alert alert-error">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span>{{ state.quickLinks.error }}</span>
+      <button class="btn btn-sm btn-ghost" @click="loadQuickLinks()">Retry</button>
+    </div>
+
+    <!-- Empty State -->
+    <div v-else-if="filteredQuickLinks.length === 0" key="empty" class="text-center py-16">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-24 h-24 mx-auto text-base-content/20 mb-4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+      </svg>
+      <h3 class="text-lg font-semibold mb-2">
+        {{ state.quickLinks.searchQuery || state.quickLinks.filterCategory ? 'No matching links' : 'No Quick Links yet' }}
+      </h3>
+      <p class="text-base-content/60 mb-4">
+        {{ state.quickLinks.searchQuery || state.quickLinks.filterCategory 
+          ? 'Try adjusting your search or filter criteria' 
+          : 'Add your first quick link to get started!' }}
+      </p>
+      <button 
+        v-if="state.isAdmin && !state.quickLinks.searchQuery && !state.quickLinks.filterCategory"
+        class="btn btn-primary"
+        @click="openQuickLinkModal()"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Add First Link
+      </button>
+    </div>
+
+    <!-- Quick Links Grid -->
+    <div v-else key="content" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div 
+        v-for="link in filteredQuickLinks" 
+        :key="link.rowIndex"
+        class="card bg-base-200 shadow transition-shadow sm:hover:shadow-lg sm:hover:scale-[1.02] cursor-pointer group"
+        @click="openExternal(link.link)"
+      >
+        <div class="card-body p-4">
+          <div class="flex items-start justify-between gap-2">
+            <!-- Icon and Name -->
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+              <div class="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-primary" v-html="getIconSvg(link.icon || link.iconKey || 'link')">
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <h3 class="font-semibold truncate">{{ link.name }}</h3>
+                <p class="text-xs text-base-content/50 truncate">{{ link.category || 'Uncategorized' }}</p>
+              </div>
+            </div>
+            
+            <!-- Edit Button (Admin Only) - Always visible -->
+            <button 
+              v-if="state.isAdmin"
+              class="btn btn-ghost btn-sm md:btn-xs btn-square"
+              @click.stop="openQuickLinkModal(link)"
+              title="Edit Link"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+              </svg>
+            </button>
+          </div>
+          
+          <!-- Link URL hint -->
+          <div class="mt-2 text-xs text-base-content/40 truncate flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3 shrink-0">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+            <span class="truncate">{{ link.link }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+</div>

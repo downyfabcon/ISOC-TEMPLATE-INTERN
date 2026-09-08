@@ -1,0 +1,183 @@
+<!-- Authentication Overlay Component -->
+<transition name="auth-overlay-fade">
+<div 
+  v-if="!state.isAuthenticated" 
+  class="fixed inset-0 bg-base-300 z-50 flex items-center justify-center"
+  id="auth-overlay"
+>
+  <div class="card bg-base-200 shadow-2xl w-full max-w-md mx-4" id="auth-card">
+    <div class="card-body items-center text-center">
+      
+      <!-- App Logo/Title -->
+      <div class="mb-6" id="auth-title">
+        <h1 class="text-3xl font-bold text-primary">{{ APP_CONFIG.name }}</h1>
+        <p v-if="APP_CONFIG.subtitle" class="text-sm text-base-content/60 mt-1">{{ APP_CONFIG.subtitle }}</p>
+      </div>
+      
+      <!-- LOADING STATE -->
+      <template v-if="state.authStatus === 'LOADING'">
+        <span class="loading loading-spinner loading-lg text-primary"></span>
+        <p class="mt-4 text-base-content/70">{{ state.authMessage || 'Authenticating...' }}</p>
+      </template>
+      
+      <!-- SETUP REQUIRED STATE -->
+      <template v-else-if="state.authStatus === 'SETUP_REQUIRED'">
+        <div class="w-full">
+          <!-- Setup Icon -->
+          <div class="flex justify-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 text-warning">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
+            </svg>
+          </div>
+          
+          <h2 class="text-xl font-semibold mb-2">Initial Setup Required</h2>
+          <p class="text-sm text-base-content/70 mb-6">Configure the Main Database to get started. This will store users, audit logs, and quick links.</p>
+          
+          <!-- Setup Form -->
+          <div class="w-full space-y-4">
+            <!-- Spreadsheet Input -->
+            <div>
+              <label class="label">
+                <span>Main Database Spreadsheet (URL or ID) <span class="text-error">*</span></span>
+              </label>
+              <input 
+                type="text" 
+                v-model="state.setupForm.spreadsheetInput"
+                placeholder="https://docs.google.com/spreadsheets/d/..."
+                class="input w-full"
+                :disabled="state.setupLoading"
+              />
+              <label class="label">
+                <span class="text-xs text-base-content/50">Sheets will be created: USERS, AUDIT LOGS, QUICK LINKS</span>
+              </label>
+            </div>
+            
+            <!-- User Email (readonly) -->
+            <div>
+              <label class="label">
+                <span>Your Email</span>
+              </label>
+              <input 
+                type="email" 
+                v-model="state.setupForm.email"
+                class="input w-full bg-base-300"
+                readonly
+              />
+            </div>
+            
+            <!-- User Name -->
+            <div>
+              <label class="label">
+                <span>Your Name <span class="text-error">*</span></span>
+              </label>
+              <input 
+                type="text" 
+                v-model="state.setupForm.name"
+                placeholder="Enter your full name"
+                class="input w-full"
+                :disabled="state.setupLoading"
+              />
+              <label class="label">
+                <span class="text-xs text-base-content/50">You will be registered as the first admin</span>
+              </label>
+            </div>
+            
+            <!-- Error Message -->
+            <div v-if="state.setupError" class="alert alert-error">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{{ state.setupError }}</span>
+            </div>
+            
+            <!-- Submit Button -->
+            <button 
+              class="btn btn-primary w-full"
+              @click="submitSetup"
+              :disabled="state.setupLoading"
+            >
+              <span v-if="state.setupLoading" class="loading loading-spinner loading-sm"></span>
+              {{ state.setupLoading ? 'Setting up...' : 'Complete Setup' }}
+            </button>
+          </div>
+        </div>
+      </template>
+      
+      <!-- AUTHENTICATING STATE (Success - Welcome) -->
+      <template v-else-if="state.authStatus === 'AUTHENTICATING'">
+        <!-- Checkmark Icon -->
+        <div class="flex justify-center mb-4">
+          <div class="w-20 h-20 rounded-full bg-success/20 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-12 h-12 text-success">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+          </div>
+        </div>
+        
+        <h2 class="text-2xl font-semibold text-success">{{ state.authMessage }}</h2>
+        <p class="text-sm text-base-content/70 mt-2">Loading your dashboard...</p>
+        
+        <!-- Progress Bar -->
+        <div class="w-full mt-6">
+          <div class="w-full bg-base-300 rounded-full h-2 overflow-hidden">
+            <div 
+              class="bg-primary h-2 rounded-full loading-bar"
+              :style="{ width: state.authProgress + '%' }"
+            ></div>
+          </div>
+        </div>
+      </template>
+      
+      <!-- ACCESS DENIED STATE -->
+      <template v-else-if="state.authStatus === 'ACCESS_DENIED'">
+        <!-- Denied Icon -->
+        <div class="flex justify-center mb-4">
+          <div class="w-20 h-20 rounded-full bg-error/20 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-12 h-12 text-error">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+          </div>
+        </div>
+        
+        <h2 class="text-2xl font-semibold text-error">Access Denied</h2>
+        <p class="text-sm text-base-content/70 mt-2 mb-4">{{ state.authMessage }}</p>
+        
+        <!-- User Email Display -->
+        <div class="bg-base-300 rounded-lg px-4 py-3 w-full">
+          <p class="text-xs text-base-content/50 mb-1">Logged in as:</p>
+          <p class="font-mono text-sm">{{ state.user.email }}</p>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <p class="text-xs text-base-content/50">
+          If you believe this is an error, please contact your system administrator.
+        </p>
+      </template>
+      
+      <!-- ERROR STATE -->
+      <template v-else-if="state.authStatus === 'ERROR'">
+        <!-- Error Icon -->
+        <div class="flex justify-center mb-4">
+          <div class="w-20 h-20 rounded-full bg-warning/20 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-12 h-12 text-warning">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+        </div>
+        
+        <h2 class="text-2xl font-semibold text-warning">Authentication Error</h2>
+        <p class="text-sm text-base-content/70 mt-2 mb-4">{{ state.authMessage }}</p>
+        
+        <button 
+          class="btn btn-outline btn-warning"
+          @click="location.reload()"
+        >
+          Try Again
+        </button>
+      </template>
+      
+    </div>
+  </div>
+</div>
+</transition>
