@@ -2,14 +2,14 @@
 <transition name="auth-overlay-fade">
 <div 
   v-if="!state.isAuthenticated" 
-  class="fixed inset-0 bg-base-300 z-50 flex items-center justify-center"
+  class="fixed inset-0 bg-base-300 z-50 flex items-center justify-center p-4 sm:p-8"
   id="auth-overlay"
 >
-  <div class="card bg-base-200 shadow-2xl w-full max-w-md mx-4" id="auth-card">
-    <div class="card-body items-center text-center">
+  <div class="card bg-base-200 shadow-2xl w-full mx-auto" :class="state.authStatus === 'LOGIN' ? 'max-w-5xl overflow-hidden' : 'max-w-md'" id="auth-card">
+    <div class="card-body" :class="state.authStatus === 'LOGIN' ? 'p-0' : 'items-center text-center'">
       
       <!-- App Logo/Title -->
-      <div class="mb-6" id="auth-title">
+      <div v-if="state.authStatus !== 'LOGIN'" class="mb-6" id="auth-title">
         <h1 class="text-3xl font-bold text-primary">{{ APP_CONFIG.name }}</h1>
         <p v-if="APP_CONFIG.subtitle" class="text-sm text-base-content/60 mt-1">{{ APP_CONFIG.subtitle }}</p>
       </div>
@@ -18,6 +18,55 @@
       <template v-if="state.authStatus === 'LOADING'">
         <span class="loading loading-spinner loading-lg text-primary"></span>
         <p class="mt-4 text-base-content/70">{{ state.authMessage || 'Authenticating...' }}</p>
+      </template>
+
+      <!-- LOGIN STATE -->
+      <template v-else-if="state.authStatus === 'LOGIN'">
+        <div class="grid min-h-[32rem] w-full lg:grid-cols-2">
+          <section class="hidden bg-neutral px-12 py-12 text-neutral-content lg:flex lg:items-center lg:justify-center">
+            <div class="w-full max-w-md text-center">
+              <div class="mx-auto mb-7 flex h-14 w-14 items-center justify-center rounded-lg bg-primary text-primary-content shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-8 w-8" v-html="getIconSvg(APP_CONFIG.icon || 'folder')"></svg>
+              </div>
+              <p class="mb-3 text-xs font-semibold tracking-[0.18em] text-primary">SECURE WORKSPACE</p>
+              <h1 class="text-4xl font-semibold leading-tight">{{ APP_CONFIG.name }}</h1>
+              <p class="mt-5 text-sm leading-6 text-neutral-content/70">Template for Web Apps, access frequently used links, and track all system changes.</p>
+              <div class="mt-9 border-t border-neutral-content/15 pt-5 text-xs text-neutral-content/55">Access is managed by your administrator.</div>
+            </div>
+          </section>
+
+          <section class="flex items-center justify-center px-6 py-10 sm:px-12">
+            <div class="w-full max-w-sm text-left">
+              <div class="mb-9 text-center lg:text-left">
+                <div class="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/15 text-primary lg:hidden">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-7 w-7" v-html="getIconSvg(APP_CONFIG.icon || 'folder')"></svg>
+                </div>
+                <p class="mb-3 text-xs font-semibold tracking-[0.18em] text-primary lg:hidden">{{ APP_CONFIG.name }}</p>
+                <h2 class="text-3xl font-semibold">Log in</h2>
+                <p class="mt-2 text-sm leading-6 text-base-content/60">Use the email address approved for your account.</p>
+              </div>
+
+              <form class="space-y-5" @submit.prevent="login">
+                <label class="form-control w-full">
+                  <span class="label-text mb-2 font-medium">Work email</span>
+                  <label class="input input-bordered flex h-12 w-full items-center gap-2 focus-within:outline-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 shrink-0 text-base-content/50"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0l-7.5-4.615a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+                    <input v-model.trim="state.loginEmail" type="email" class="grow" placeholder="name@company.com" autocomplete="email" required />
+                  </label>
+                </label>
+
+                <div v-if="state.loginError" class="alert alert-error text-sm"><span>{{ state.loginError }}</span></div>
+
+                <button type="submit" class="btn btn-primary h-12 w-full" :disabled="state.loginLoading">
+                  <span v-if="state.loginLoading" class="loading loading-spinner loading-sm"></span>
+                  {{ state.loginLoading ? 'Checking access...' : 'Log In' }}
+                </button>
+              </form>
+
+              <p class="mt-7 border-t border-base-300 pt-5 text-center text-xs leading-5 text-base-content/50">Your email must match the Google account signed in to this browser.</p>
+            </div>
+          </section>
+        </div>
       </template>
       
       <!-- SETUP REQUIRED STATE -->

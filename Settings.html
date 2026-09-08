@@ -339,7 +339,7 @@
                   <td>
                     <span 
                       class="badge"
-                      :class="user.role === 'admin' ? 'badge-primary' : user.role === 'editor' ? 'badge-secondary' : 'badge-ghost'"
+                      :class="user.role === 'admin' ? 'badge-primary' : 'badge-ghost'"
                     >
                       {{ user.role }}
                     </span>
@@ -603,8 +603,7 @@
           class="select w-full"
           :disabled="state.users.saving || (state.users.editMode && state.users.form.email === state.user.email)"
         >
-          <option value="editor">Editor</option>
-          <option value="viewer">Viewer</option>
+          <option value="user">User</option>
           <option value="admin">Admin</option>
         </select>
         <label v-if="state.users.editMode && state.users.form.email === state.user.email" class="label">

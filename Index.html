@@ -804,6 +804,9 @@
           authStatus: 'LOADING', // LOADING, SETUP_REQUIRED, AUTHENTICATING, ACCESS_DENIED, ERROR
           authMessage: 'Initializing...',
           authProgress: 0,
+          loginEmail: '',
+          loginError: null,
+          loginLoading: false,
           setupLoading: false,
           setupError: null,
           setupForm: {
@@ -862,7 +865,7 @@
             form: {
               email: '',
               name: '',
-              role: 'viewer',
+              role: 'user',
               rowIndex: null
             }
           },
@@ -2287,16 +2290,19 @@
         }
         
         // ==================== AUTHENTICATION ====================
-        function authenticate() {
+        function authenticate(loginEmail = '') {
           state.authStatus = 'LOADING';
           state.authMessage = 'Checking authentication...';
           
           google.script.run
             .withSuccessHandler(result => {
               if (result.status === 'SETUP_REQUIRED') {
+                state.loginLoading = false;
                 state.authStatus = 'SETUP_REQUIRED';
                 state.setupForm.email = result.email || '';
               } else if (result.status === 'AUTHENTICATED') {
+                state.loginError = null;
+                state.loginLoading = false;
                 state.user = {
                   email: result.email,
                   name: result.name,
@@ -2310,19 +2316,48 @@
                 // Animate progress and complete auth
                 animateAuthProgress();
               } else if (result.status === 'ACCESS_DENIED') {
+                state.loginLoading = false;
                 state.authStatus = 'ACCESS_DENIED';
-                state.authMessage = 'Your email is not registered in the system.';
+                state.authMessage = result.message || 'Your email is not registered in the system.';
                 state.user.email = result.email || '';
               } else {
+                state.loginLoading = false;
                 state.authStatus = 'ERROR';
                 state.authMessage = result.message || 'Authentication failed';
               }
             })
             .withFailureHandler(error => {
+              state.loginLoading = false;
               state.authStatus = 'ERROR';
               state.authMessage = error.message || 'Failed to authenticate';
             })
-            .authenticate();
+            .authenticate(loginEmail);
+        }
+
+        function login() {
+          const email = state.loginEmail.trim();
+          if (!email) {
+            state.loginError = 'Enter the email approved by your administrator.';
+            return;
+          }
+
+          state.loginLoading = true;
+          state.loginError = null;
+          sessionStorage.removeItem('app-logged-out');
+          authenticate(email);
+        }
+
+        function logout() {
+          sessionStorage.setItem('app-logged-out', 'true');
+          state.isAuthenticated = false;
+          state.isAdmin = false;
+          state.user = { email: '', name: '', role: '' };
+          state.currentView = 'home';
+          state.authProgress = 0;
+          state.authStatus = 'LOGIN';
+          state.authMessage = '';
+          state.loginEmail = '';
+          state.loginError = null;
         }
         
         function animateAuthProgress() {
@@ -2519,7 +2554,7 @@
             state.users.form = {
               email: '',
               name: '',
-              role: 'viewer',
+              role: 'user',
               id: null
             };
           }
@@ -3190,8 +3225,12 @@
             state.sidebarCollapsed = savedSidebar === 'true';
           }
           
-          // Start authentication
-          authenticate();
+          // Show a login prompt after explicit logout; otherwise verify the active Google account.
+          if (sessionStorage.getItem('app-logged-out') === 'true') {
+            state.authStatus = 'LOGIN';
+          } else {
+            authenticate();
+          }
           startLanguageObserver();
           refreshLanguageAfterRender();
         });
@@ -3260,6 +3299,8 @@
           setSettingsTab,
           navigateTo,
           toggleSidebar,
+          login,
+          logout,
           submitSetup,
           getIconSvg,
           openExternal,
