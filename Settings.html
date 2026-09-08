@@ -277,6 +277,38 @@
         </p>
       </div>
     </div>
+
+    <!-- Language and Account Preferences -->
+    <div class="card bg-base-200">
+      <div class="card-body">
+        <h2 class="card-title text-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 21l5.25-11.25L21 21m-7.875-2.25h5.25M3 5.25h7.5M6.75 3v2.25m0 0a8.25 8.25 0 008.25 8.25M6.75 5.25A8.25 8.25 0 013 13.5" />
+          </svg>
+          Language and account preferences
+        </h2>
+        <p class="text-sm text-base-content/60 mb-4">Personalize how ISOC Template behaves for you</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label class="form-control w-full">
+            <span class="label-text mb-2">Language</span>
+            <select class="select select-bordered" :value="state.settings.language" @change="setLanguage($event.target.value)">
+              <option value="en">English</option>
+              <option value="fil">Filipino</option>
+            </select>
+          </label>
+          <div class="space-y-3">
+            <label class="label cursor-pointer justify-start gap-3 p-0">
+              <input type="checkbox" class="toggle toggle-primary" v-model="state.settings.account.compactMode" @change="saveAccountPreferences" />
+              <span><span class="label-text block">Compact layout</span><span class="text-xs text-base-content/50">Fit more information on screen</span></span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-3 p-0">
+              <input type="checkbox" class="toggle toggle-primary" v-model="state.settings.account.emailAlerts" @change="saveAccountPreferences" />
+              <span><span class="label-text block">Email alerts</span><span class="text-xs text-base-content/50">Keep support and system alerts enabled</span></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
     
   </div>
   <!-- USERS TAB (Admin Only) -->

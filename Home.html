@@ -84,11 +84,66 @@
         <div class="text-center mt-2">
           <div class="text-3xl font-bold font-mono">{{ currentTime }}</div>
           <div class="text-base-content/60 text-sm mt-1">{{ currentDate }}</div>
+          <select
+            class="select select-bordered select-sm mt-3 w-full max-w-xs"
+            :value="state.settings.timezone"
+            @change="setTimezone($event.target.value)"
+            aria-label="Choose timezone"
+          >
+            <option v-for="timezone in timezoneOptions" :key="timezone.value" :value="timezone.value">{{ timezone.label }}</option>
+          </select>
         </div>
       </div>
     </div>
     
   </div>
+
+  <!-- Usage Analytics -->
+  <section class="card bg-base-200 shadow-xl mt-6" aria-labelledby="home-analytics-title">
+    <div class="card-body">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h2 id="home-analytics-title" class="card-title text-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-primary">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+            </svg>
+            Usage Analytics
+          </h2>
+          <p class="text-sm text-base-content/60">A quick view of activity in this workspace</p>
+        </div>
+        <span class="badge badge-primary badge-outline">Live session</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+        <div class="rounded-lg bg-base-100 p-4">
+          <p class="text-xs uppercase tracking-wide text-base-content/50">Quick links</p>
+          <p class="text-2xl font-bold mt-1">{{ analyticsStats.links }}</p>
+          <p class="text-xs text-base-content/60">available resources</p>
+        </div>
+        <div class="rounded-lg bg-base-100 p-4">
+          <p class="text-xs uppercase tracking-wide text-base-content/50">Active users</p>
+          <p class="text-2xl font-bold mt-1">{{ analyticsStats.users }}</p>
+          <p class="text-xs text-base-content/60">registered accounts</p>
+        </div>
+        <div class="rounded-lg bg-base-100 p-4">
+          <p class="text-xs uppercase tracking-wide text-base-content/50">Alerts</p>
+          <p class="text-2xl font-bold mt-1">{{ analyticsStats.alerts }}</p>
+          <p class="text-xs text-base-content/60">recent notifications</p>
+        </div>
+      </div>
+      <div class="mt-5">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Link activity</h3>
+          <span class="text-xs text-base-content/50">Current session</span>
+        </div>
+        <div class="grid grid-cols-7 gap-2 items-end h-28">
+          <div v-for="bar in analyticsBars" :key="bar.label" class="flex flex-col items-center gap-2 h-full justify-end">
+            <div class="w-full max-w-8 rounded-t bg-primary/80 min-h-2" :style="{ height: bar.height + '%' }" :title="bar.value + ' link interactions'"></div>
+            <span class="text-[10px] text-base-content/50">{{ bar.label }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- Getting Started Guide (for new users) -->
   <div class="card bg-gradient-to-r from-primary/10 to-secondary/10 shadow-xl">

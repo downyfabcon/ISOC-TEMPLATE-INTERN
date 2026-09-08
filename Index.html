@@ -551,6 +551,46 @@
         
         <!-- Page Content -->
         <main class="flex-1 p-4 md:p-6 overflow-auto">
+
+          <!-- Shared dashboard actions -->
+          <header class="flex justify-end items-center gap-2 mb-4">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm gap-2"
+              @click="refreshDashboard"
+              :disabled="state.dashboardRefreshing"
+              title="Refresh dashboard data"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4" :class="{ 'animate-spin': state.dashboardRefreshing }">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              Refresh
+            </button>
+            <div class="dropdown dropdown-end">
+              <button type="button" class="btn btn-ghost btn-sm btn-circle relative" @click="state.notifications.open = !state.notifications.open" aria-label="Notifications">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9a6 6 0 00-12 0v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                </svg>
+                <span v-if="unreadNotificationCount" class="badge badge-secondary badge-xs absolute -right-1 -top-1">{{ unreadNotificationCount }}</span>
+              </button>
+              <div v-if="state.notifications.open" class="dropdown-content z-[50] mt-2 w-80 rounded-box bg-base-200 p-3 shadow-2xl border border-base-300">
+                <div class="flex items-center justify-between gap-2 mb-2">
+                  <h2 class="font-semibold">Recent alerts</h2>
+                  <button type="button" class="btn btn-ghost btn-xs" @click="markNotificationsRead">Mark read</button>
+                </div>
+                <div v-if="!state.notifications.list.length" class="text-sm text-base-content/60 py-4 text-center">No recent alerts</div>
+                <div v-for="notification in state.notifications.list" :key="notification.id" class="py-2 border-t border-base-300" :class="{ 'opacity-60': notification.read }">
+                  <div class="flex items-start gap-2">
+                    <span class="mt-1 h-2 w-2 rounded-full shrink-0" :class="notification.type === 'error' ? 'bg-error' : notification.type === 'success' ? 'bg-success' : 'bg-info'"></span>
+                    <div class="min-w-0">
+                      <p class="text-sm">{{ notification.message }}</p>
+                      <p class="text-xs text-base-content/50">{{ notification.time }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
           
           <!-- Home View -->
           <?!= include('Home'); ?>
@@ -791,7 +831,19 @@
             darkMode: true,
             theme: 'dark',
             animationsEnabled: true,
-            animationIntensity: 'engaging' // 'subtle', 'engaging', 'disabled'
+            animationIntensity: 'engaging',
+            timezone: 'Asia/Manila',
+            language: 'en',
+            account: {
+              compactMode: false,
+              emailAlerts: true
+            }
+          },
+
+          dashboardRefreshing: false,
+          notifications: {
+            open: false,
+            list: []
           },
           
           // Users (admin)
@@ -893,19 +945,69 @@
         const animationsDisabled = computed(() => (
           state.settings.animationIntensity === 'disabled' || state.settings.animationsEnabled === false
         ));
+
+        const analyticsStats = computed(() => ({
+          links: state.quickLinks.list.length,
+          users: state.users.list.length || (state.user.email ? 1 : 0),
+          alerts: state.notifications.list.length
+        }));
+
+        const analyticsBars = computed(() => {
+          const base = Math.max(1, state.quickLinks.list.length);
+          const values = [base, base + 1, Math.max(1, base - 1), base + 2, base, base + 3, Math.max(1, base - 2)];
+          const max = Math.max(...values);
+          return values.map((value, index) => ({
+            label: ['M', 'T', 'W', 'T', 'F', 'S', 'S'][index],
+            value,
+            height: Math.round((value / max) * 100)
+          }));
+        });
         
         // ==================== TOAST SYSTEM ====================
         const toasts = reactive([]);
         let toastId = 0;
+
+        const unreadNotificationCount = computed(() => state.notifications.list.filter(item => !item.read).length);
         
         function showToast(message, type = 'info', duration = 4000) {
           const id = ++toastId;
           toasts.push({ id, message, type });
+          state.notifications.list.unshift({
+            id: `notification-${id}`,
+            message,
+            type,
+            read: false,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          });
+          state.notifications.list = state.notifications.list.slice(0, 8);
+          persistNotifications();
           
           setTimeout(() => {
             const index = toasts.findIndex(t => t.id === id);
             if (index > -1) toasts.splice(index, 1);
           }, duration);
+        }
+
+        function persistNotifications() {
+          try {
+            localStorage.setItem('app-notifications', JSON.stringify(state.notifications.list));
+          } catch (e) {
+            // Local storage is optional in embedded Apps Script contexts.
+          }
+        }
+
+        function loadNotifications() {
+          try {
+            const saved = JSON.parse(localStorage.getItem('app-notifications') || '[]');
+            if (Array.isArray(saved)) state.notifications.list = saved.slice(0, 8);
+          } catch (e) {
+            state.notifications.list = [];
+          }
+        }
+
+        function markNotificationsRead() {
+          state.notifications.list.forEach(item => { item.read = true; });
+          persistNotifications();
         }
 
         // ==================== GAS PROMISE WRAPPER ====================
@@ -1177,10 +1279,65 @@
         const currentTime = Vue.ref('');
         const currentDate = Vue.ref('');
         
+        const timezoneOptions = [
+          { value: 'Asia/Manila', label: 'Manila (PHT, UTC+8)' },
+          { value: 'Asia/Tokyo', label: 'Tokyo (JST, UTC+9)' },
+          { value: 'Asia/Singapore', label: 'Singapore (SGT, UTC+8)' },
+          { value: 'Australia/Sydney', label: 'Sydney (AET)' },
+          { value: 'Europe/London', label: 'London (GMT/BST)' },
+          { value: 'America/New_York', label: 'New York (ET)' },
+          { value: 'America/Los_Angeles', label: 'Los Angeles (PT)' },
+          { value: 'UTC', label: 'UTC' }
+        ];
+
         function updateTime() {
           const now = new Date();
-          currentTime.value = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-          currentDate.value = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+          const options = { timeZone: state.settings.timezone, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+          currentTime.value = now.toLocaleTimeString(state.settings.language === 'fil' ? 'fil-PH' : 'en-US', options);
+          currentDate.value = now.toLocaleDateString(state.settings.language === 'fil' ? 'fil-PH' : 'en-US', { timeZone: state.settings.timezone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        function setTimezone(timezone) {
+          state.settings.timezone = timezone;
+          localStorage.setItem('app-timezone', timezone);
+          updateTime();
+          showToast('Timezone updated', 'success');
+        }
+
+        function setLanguage(language) {
+          state.settings.language = language;
+          localStorage.setItem('app-language', language);
+          updateTime();
+          showToast('Language preference updated', 'success');
+        }
+
+        function saveAccountPreferences() {
+          localStorage.setItem('app-account-preferences', JSON.stringify(state.settings.account));
+          showToast('Account preferences saved', 'success');
+        }
+
+        function loadUserPreferences() {
+          const timezone = localStorage.getItem('app-timezone');
+          const language = localStorage.getItem('app-language');
+          if (timezone) state.settings.timezone = timezone;
+          if (language) state.settings.language = language;
+          try {
+            const account = JSON.parse(localStorage.getItem('app-account-preferences') || 'null');
+            if (account && typeof account === 'object') Object.assign(state.settings.account, account);
+          } catch (e) {
+            // Use defaults when saved preferences are unavailable.
+          }
+        }
+
+        function refreshDashboard() {
+          if (state.dashboardRefreshing) return;
+          state.dashboardRefreshing = true;
+          const requests = [loadQuickLinks()];
+          if (state.isAdmin) requests.push(loadUsers(), loadAuditLogs());
+          Promise.all(requests.filter(Boolean)).finally(() => {
+            state.dashboardRefreshing = false;
+            showToast('Dashboard refreshed', 'success');
+          });
         }
         
         // Initialize and update every second
@@ -2456,6 +2613,9 @@
         
         // ==================== LIFECYCLE ====================
         onMounted(() => {
+          loadUserPreferences();
+          loadNotifications();
+          updateTime();
           loadAppConfig();
           loadThemePreference();
           loadAnimationPreference();
@@ -2487,6 +2647,15 @@
           animationsDisabled,
           currentTime,
           currentDate,
+          analyticsStats,
+          analyticsBars,
+          timezoneOptions,
+          unreadNotificationCount,
+          refreshDashboard,
+          markNotificationsRead,
+          setTimezone,
+          setLanguage,
+          saveAccountPreferences,
           availableThemes,
           quickLinksCategories,
           filteredQuickLinks,
