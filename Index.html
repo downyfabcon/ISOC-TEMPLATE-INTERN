@@ -2720,8 +2720,6 @@
           } else {
             authenticate();
           }
-          startLanguageObserver();
-          refreshLanguageAfterRender();
         });
         
         // Watch for settings tab changes
@@ -2731,18 +2729,6 @@
           }
         });
 
-        watch(() => state.settings.language, () => {
-          refreshLanguageAfterRender();
-        });
-
-        watch(() => state.isAuthenticated, () => {
-          refreshLanguageAfterRender();
-        });
-
-        watch(() => state.currentView, () => {
-          refreshLanguageAfterRender();
-        });
-        
         // ==================== RETURN ====================
         return {
           state,
@@ -2760,7 +2746,6 @@
           refreshDashboard,
           markNotificationsRead,
           setTimezone,
-          setLanguage,
           t,
           loadSupportStats,
           availableThemes,
