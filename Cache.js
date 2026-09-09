@@ -3,7 +3,7 @@
  * Implements version tracking with CacheService for smart polling
  */
 
-// Cache keys
+// Cache Keys
 const CACHE_KEYS = {
     DATA_VERSION: 'DB_VERSION'
 };
@@ -13,8 +13,8 @@ const CACHE_EXPIRATION = 21600;
 
 /**
  * Gets the current data version from cache
- * Used for smart polling - clients check this to see if data has changed
- * @returns {string} The current version timestamp or generates new one if not exists
+ * Used for smart polling - the clients will check this to see if data has changed
+ * @returns {string} The current version timestamp or generates new one if not exists 
  */
 function getDataVersion() {
     const cache = CacheService.getScriptCache();

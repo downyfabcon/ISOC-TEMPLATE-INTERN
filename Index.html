@@ -551,12 +551,54 @@
         
         <!-- Page Content -->
         <main class="flex-1 p-4 md:p-6 overflow-auto">
+          <!-- Shared dashboard actions -->
+          <header class="flex justify-end items-center gap-2 mb-4">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm gap-2"
+              @click="refreshDashboard"
+              :disabled="state.dashboardRefreshing"
+              title="Refresh dashboard data"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4" :class="{ 'animate-spin': state.dashboardRefreshing }">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              Refresh
+            </button>
+            <div class="dropdown dropdown-end">
+              <button type="button" class="btn btn-ghost btn-sm btn-circle relative" @click="state.notifications.open = !state.notifications.open" aria-label="Notifications">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9a6 6 0 00-12 0v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                </svg>
+                <span v-if="unreadNotificationCount" class="badge badge-secondary badge-xs absolute -right-1 -top-1">{{ unreadNotificationCount }}</span>
+              </button>
+              <div v-if="state.notifications.open" class="dropdown-content z-[50] mt-2 w-80 rounded-box bg-base-200 p-3 shadow-2xl border border-base-300">
+                <div class="flex items-center justify-between gap-2 mb-2">
+                  <h2 class="font-semibold">Recent alerts</h2>
+                  <button type="button" class="btn btn-ghost btn-xs" @click="markNotificationsRead">Mark read</button>
+                </div>
+                <div v-if="!state.notifications.list.length" class="text-sm text-base-content/60 py-4 text-center">No recent alerts</div>
+                <div v-for="notification in state.notifications.list" :key="notification.id" class="py-2 border-t border-base-300" :class="{ 'opacity-60': notification.read }">
+                  <div class="flex items-start gap-2">
+                    <span class="mt-1 h-2 w-2 rounded-full shrink-0" :class="notification.type === 'error' ? 'bg-error' : notification.type === 'success' ? 'bg-success' : 'bg-info'"></span>
+                    <div class="min-w-0">
+                      <p class="text-sm">{{ notification.message }}</p>
+                      <p class="text-xs text-base-content/50">{{ notification.time }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
           
           <!-- Home View -->
           <?!= include('Home'); ?>
           
           <!-- Quick Links View -->
           <?!= include('QuickLinksView'); ?>
+
+          <!-- Help and Support View -->
+          <?!= include('SupportView'); ?>
           
           <!-- Settings View -->
           <?!= include('Settings'); ?>
@@ -762,6 +804,9 @@
           authStatus: 'LOADING', // LOADING, SETUP_REQUIRED, AUTHENTICATING, ACCESS_DENIED, ERROR
           authMessage: 'Initializing...',
           authProgress: 0,
+          loginEmail: '',
+          loginError: null,
+          loginLoading: false,
           setupLoading: false,
           setupError: null,
           setupForm: {
@@ -788,7 +833,23 @@
             darkMode: true,
             theme: 'dark',
             animationsEnabled: true,
-            animationIntensity: 'engaging' // 'subtle', 'engaging', 'disabled'
+            animationIntensity: 'engaging',
+            timezone: 'Asia/Manila'
+          },
+
+          dashboardRefreshing: false,
+          notifications: {
+            open: false,
+            list: []
+          },
+          usage: {
+            linkClicks: []
+          },
+          analytics: {
+            period: 'monthly',
+            year: new Date().getFullYear(),
+            month: new Date().getMonth() + 1,
+            day: new Date().getDate()
           },
           
           // Users (admin)
@@ -815,7 +876,6 @@
             error: null,
             searchQuery: '',
             filterCategory: '',
-            filterFavorites: false,
             favoriteIds: [],
             sortMode: 'recent',
             displayMode: 'pages',
@@ -840,6 +900,22 @@
             formErrors: {}
           },
 
+          support: {
+            submitting: false,
+            success: null,
+            error: null,
+            stats: {
+              total: 0,
+              loading: false
+            },
+            form: {
+              type: 'broken_link',
+              subject: '',
+              link: '',
+              description: ''
+            }
+          },
+          
           // Audit Log
           auditLog: {
             list: [],
@@ -885,19 +961,94 @@
         const animationsDisabled = computed(() => (
           state.settings.animationIntensity === 'disabled' || state.settings.animationsEnabled === false
         ));
+
+        const analyticsMonths = computed(() => Array.from({ length: 12 }, (_, index) => ({
+          value: index + 1,
+          label: new Date(2000, index, 1).toLocaleString('en-US', { month: 'short' })
+        })));
+
+        const analyticsDays = computed(() => {
+          const daysInMonth = new Date(state.analytics.year, state.analytics.month, 0).getDate();
+          if (state.analytics.day > daysInMonth) state.analytics.day = daysInMonth;
+          return Array.from({ length: daysInMonth }, (_, index) => index + 1);
+        });
+
+        const analyticsYears = computed(() => {
+          const currentYear = new Date().getFullYear();
+          const recordedYears = state.usage.linkClicks.map(item => Number(item.date.slice(0, 4))).filter(Boolean);
+          return Array.from(new Set([currentYear, ...recordedYears])).sort((a, b) => b - a);
+        });
+
+        function isAnalyticsDateSelected(dateString) {
+          const date = new Date(`${dateString}T00:00:00`);
+          if (date.getFullYear() !== state.analytics.year) return false;
+          if (state.analytics.period === 'yearly') return true;
+          if (date.getMonth() + 1 !== state.analytics.month) return false;
+          return state.analytics.period !== 'daily' || date.getDate() === state.analytics.day;
+        }
+
+        const analyticsBars = computed(() => {
+          const values = state.usage.linkClicks.filter(item => isAnalyticsDateSelected(item.date)).map(item => item.count);
+          while (values.length < 7) values.push(0);
+          const max = Math.max(1, ...values);
+          return values.map((value, index) => ({
+            label: ['M', 'T', 'W', 'T', 'F', 'S', 'S'][index],
+            value,
+            height: Math.round((value / max) * 100)
+          }));
+        });
+
+        const analyticsSummary = computed(() => ({
+          total: state.usage.linkClicks.filter(item => isAnalyticsDateSelected(item.date)).reduce((total, item) => total + item.count, 0),
+          support: state.support.stats.total,
+          active: state.users.list.length || (state.user.email ? 1 : 0)
+        }));
         
         // ==================== TOAST SYSTEM ====================
         const toasts = reactive([]);
         let toastId = 0;
+
+        const unreadNotificationCount = computed(() => state.notifications.list.filter(item => !item.read).length);
         
         function showToast(message, type = 'info', duration = 4000) {
           const id = ++toastId;
           toasts.push({ id, message, type });
+          state.notifications.list.unshift({
+            id: `notification-${id}`,
+            message,
+            type,
+            read: false,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          });
+          state.notifications.list = state.notifications.list.slice(0, 8);
+          persistNotifications();
           
           setTimeout(() => {
             const index = toasts.findIndex(t => t.id === id);
             if (index > -1) toasts.splice(index, 1);
           }, duration);
+        }
+
+        function persistNotifications() {
+          try {
+            localStorage.setItem('app-notifications', JSON.stringify(state.notifications.list));
+          } catch (e) {
+            // Local storage is optional in embedded Apps Script contexts.
+          }
+        }
+
+        function loadNotifications() {
+          try {
+            const saved = JSON.parse(localStorage.getItem('app-notifications') || '[]');
+            if (Array.isArray(saved)) state.notifications.list = saved.slice(0, 8);
+          } catch (e) {
+            state.notifications.list = [];
+          }
+        }
+
+        function markNotificationsRead() {
+          state.notifications.list.forEach(item => { item.read = true; });
+          persistNotifications();
         }
 
         // ==================== GAS PROMISE WRAPPER ====================
@@ -1150,6 +1301,13 @@
             const trimmed = url.trim();
             if (!trimmed) return;
 
+            const today = new Date().toISOString().slice(0, 10);
+            const existing = state.usage.linkClicks.find(item => item.date === today);
+            if (existing) existing.count += 1;
+            else state.usage.linkClicks.push({ date: today, count: 1 });
+            state.usage.linkClicks = state.usage.linkClicks.slice(-3650);
+            localStorage.setItem('app-link-clicks', JSON.stringify(state.usage.linkClicks));
+
             const opener = globalThis?.open || globalThis?.window?.open;
             if (typeof opener === 'function') {
               opener.call(globalThis, trimmed, '_blank');
@@ -1168,11 +1326,73 @@
         // ==================== TIME DISPLAY ====================
         const currentTime = Vue.ref('');
         const currentDate = Vue.ref('');
-        
+        const currentTimezoneOffset = Vue.ref('GMT+8');
+
+        function t(key) {
+          return key;
+        }
+
+        const timezoneOptions = [
+          { value: 'Asia/Manila', label: 'Manila (PHT, UTC+8)', shortLabel: 'Manila (PHT)', code: 'PHT' },
+          { value: 'Asia/Tokyo', label: 'Tokyo (JST, UTC+9)', shortLabel: 'Tokyo (JST)', code: 'JST' },
+          { value: 'Asia/Singapore', label: 'Singapore (SGT, UTC+8)', shortLabel: 'Singapore (SGT)', code: 'SGT' },
+          { value: 'Australia/Sydney', label: 'Sydney (AET)', shortLabel: 'Sydney (AET)', code: 'AET' },
+          { value: 'Europe/London', label: 'London (GMT/BST)', shortLabel: 'London (GMT)', code: 'GMT' },
+          { value: 'America/New_York', label: 'New York (ET)', shortLabel: 'New York (ET)', code: 'ET' },
+          { value: 'America/Los_Angeles', label: 'Los Angeles (PT)', shortLabel: 'Los Angeles (PT)', code: 'PT' },
+          { value: 'UTC', label: 'UTC', shortLabel: 'UTC', code: 'UTC' }
+        ];
+
         function updateTime() {
           const now = new Date();
-          currentTime.value = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-          currentDate.value = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+          const options = { timeZone: state.settings.timezone, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+          currentTime.value = now.toLocaleTimeString('en-US', options);
+          currentDate.value = now.toLocaleDateString('en-US', { timeZone: state.settings.timezone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+          const offsetPart = new Intl.DateTimeFormat('en-US', { timeZone: state.settings.timezone, timeZoneName: 'shortOffset' })
+            .formatToParts(now)
+            .find(part => part.type === 'timeZoneName')?.value || 'GMT+8';
+          currentTimezoneOffset.value = offsetPart.replace(/^GMT([+-])0(\d)$/, 'GMT$1$2').replace(':00', '');
+        }
+
+        function setTimezone(timezone) {
+          state.settings.timezone = timezone;
+          localStorage.setItem('app-timezone', timezone);
+          updateTime();
+          showToast('Timezone updated', 'success');
+        }
+
+        function loadSupportStats() {
+          state.support.stats.loading = true;
+          google.script.run
+            .withSuccessHandler(result => {
+              state.support.stats.loading = false;
+              state.support.stats.total = Number(result?.total) || 0;
+            })
+            .withFailureHandler(() => { state.support.stats.loading = false; })
+            .getSupportRequestStats();
+        }
+
+        function loadUserPreferences() {
+          const timezone = localStorage.getItem('app-timezone');
+          if (timezone) state.settings.timezone = timezone;
+          localStorage.removeItem('app-language');
+          try {
+            const clicks = JSON.parse(localStorage.getItem('app-link-clicks') || '[]');
+            if (Array.isArray(clicks)) state.usage.linkClicks = clicks.slice(-3650);
+          } catch (e) {
+            // Use defaults when saved preferences are unavailable.
+          }
+        }
+
+        function refreshDashboard() {
+          if (state.dashboardRefreshing) return;
+          state.dashboardRefreshing = true;
+          const requests = [loadQuickLinks()];
+          if (state.isAdmin) requests.push(loadUsers(), loadAuditLogs());
+          Promise.all(requests.filter(Boolean)).finally(() => {
+            state.dashboardRefreshing = false;
+            showToast('Dashboard refreshed', 'success');
+          });
         }
         
         // Initialize and update every second
@@ -1410,6 +1630,8 @@
         
         // ==================== NAVIGATION ====================
         function navigateTo(view) {
+          if (view === 'support' && state.isAdmin) view = 'home';
+          if ((view === 'settings' || view === 'audit') && !state.isAdmin) view = 'home';
           state.currentView = view;
           
           // Close mobile drawer
@@ -1424,6 +1646,45 @@
               loadUsers();
             }
           }
+        }
+
+        function resetSupportForm() {
+          state.support.form = {
+            type: 'broken_link',
+            subject: '',
+            link: '',
+            description: ''
+          };
+          state.support.success = null;
+          state.support.error = null;
+        }
+
+        function submitSupportRequest() {
+          state.support.submitting = true;
+          state.support.success = null;
+          state.support.error = null;
+
+          google.script.run
+            .withSuccessHandler(result => {
+              state.support.submitting = false;
+              if (result && result.success) {
+                state.support.success = result.message || 'Your support request was sent.';
+                loadSupportStats();
+                state.support.form = {
+                  type: 'broken_link',
+                  subject: '',
+                  link: '',
+                  description: ''
+                };
+              } else {
+                state.support.error = result?.error || result?.message || 'Unable to send support request.';
+              }
+            })
+            .withFailureHandler(error => {
+              state.support.submitting = false;
+              state.support.error = error.message || 'Unable to send support request.';
+            })
+            .submitSupportRequest({ ...state.support.form });
         }
         
         /**
@@ -1524,16 +1785,19 @@
         }
         
         // ==================== AUTHENTICATION ====================
-        function authenticate() {
+        function authenticate(loginEmail = '') {
           state.authStatus = 'LOADING';
           state.authMessage = 'Checking authentication...';
           
           google.script.run
             .withSuccessHandler(result => {
               if (result.status === 'SETUP_REQUIRED') {
+                state.loginLoading = false;
                 state.authStatus = 'SETUP_REQUIRED';
                 state.setupForm.email = result.email || '';
               } else if (result.status === 'AUTHENTICATED') {
+                state.loginError = null;
+                state.loginLoading = false;
                 state.user = {
                   email: result.email,
                   name: result.name,
@@ -1547,19 +1811,48 @@
                 // Animate progress and complete auth
                 animateAuthProgress();
               } else if (result.status === 'ACCESS_DENIED') {
+                state.loginLoading = false;
                 state.authStatus = 'ACCESS_DENIED';
-                state.authMessage = 'Your email is not registered in the system.';
+                state.authMessage = result.message || 'Your email is not registered in the system.';
                 state.user.email = result.email || '';
               } else {
+                state.loginLoading = false;
                 state.authStatus = 'ERROR';
                 state.authMessage = result.message || 'Authentication failed';
               }
             })
             .withFailureHandler(error => {
+              state.loginLoading = false;
               state.authStatus = 'ERROR';
               state.authMessage = error.message || 'Failed to authenticate';
             })
-            .authenticate();
+            .authenticate(loginEmail);
+        }
+
+        function login() {
+          const email = state.loginEmail.trim();
+          if (!email) {
+            state.loginError = 'Enter the email approved by your administrator.';
+            return;
+          }
+
+          state.loginLoading = true;
+          state.loginError = null;
+          sessionStorage.removeItem('app-logged-out');
+          authenticate(email);
+        }
+
+        function logout() {
+          sessionStorage.setItem('app-logged-out', 'true');
+          state.isAuthenticated = false;
+          state.isAdmin = false;
+          state.user = { email: '', name: '', role: '' };
+          state.currentView = 'home';
+          state.authProgress = 0;
+          state.authStatus = 'LOGIN';
+          state.authMessage = '';
+          state.loginEmail = '';
+          state.loginError = null;
         }
         
         function animateAuthProgress() {
@@ -1578,11 +1871,9 @@
                 const rawItems = result.items || [];
                 state.quickLinks.list = rawItems.map(item => ({
                   ...item,
-                  icon: item.icon || item.iconKey || '',
-                  isFavorite: state.quickLinks.favoriteIds.includes(item.id)
+                  icon: item.icon || item.iconKey || ''
                 }));
               }
-              loadQuickLinkFavorites();
               dataLoaded.quickLinks = true;
               checkAllDataLoaded();
             })
@@ -1855,26 +2146,14 @@
               (state.quickLinks.filterCategory === '__favorites__'
                 ? link.isFavorite
                 : link.category === state.quickLinks.filterCategory);
-
-            const matchesFavorites = !state.quickLinks.filterFavorites || link.isFavorite;
             
-            return matchesSearch && matchesCategory && matchesFavorites;
+            return matchesSearch && matchesCategory;
           });
 
           const usage = readQuickLinkUsage();
           return filtered.slice().sort((first, second) => {
-            if (state.quickLinks.sortMode === 'nameAsc') {
-              return first.name.localeCompare(second.name);
-            }
-            if (state.quickLinks.sortMode === 'nameDesc') {
-              return second.name.localeCompare(first.name);
-            }
-            if (state.quickLinks.sortMode === 'category') {
-              const firstCategory = (first.category || 'Uncategorized').trim();
-              const secondCategory = (second.category || 'Uncategorized').trim();
-              return firstCategory.localeCompare(secondCategory, undefined, { sensitivity: 'base' }) ||
-                first.name.localeCompare(second.name, undefined, { sensitivity: 'base' });
-            }
+            if (state.quickLinks.sortMode === 'nameAsc') return first.name.localeCompare(second.name);
+            if (state.quickLinks.sortMode === 'nameDesc') return second.name.localeCompare(first.name);
             return (usage[second.id] || 0) - (usage[first.id] || 0);
           });
         });
@@ -1893,49 +2172,25 @@
           return filteredQuickLinks.value.slice(start, start + state.quickLinks.pageSize);
         });
 
-        function goToQuickLinksJumpPage() {
-          if (!state.quickLinks.jumpToPage) return;
-          quickLinksPager.goto(Number(state.quickLinks.jumpToPage));
-          state.quickLinks.jumpToPage = '';
-        }
-
-        watch(
-          () => [
-            state.quickLinks.searchQuery,
-            state.quickLinks.filterCategory,
-            state.quickLinks.filterFavorites,
-            state.quickLinks.sortMode,
-            state.quickLinks.displayMode
-          ],
-          () => {
-            state.quickLinks.currentPage = 1;
-          }
-        );
-
-        watch(
-          () => [filteredQuickLinks.value.length, state.quickLinks.pageSize],
-          () => quickLinksPager.clampCurrent()
-        );
-
         function readQuickLinkUsage() {
           try {
-            const saved = localStorage.getItem('quick-links-last-used-v1');
-            const usage = saved ? JSON.parse(saved) : {};
-            return usage && typeof usage === 'object' ? usage : {};
+            return JSON.parse(localStorage.getItem('quick-links-last-used-v1') || '{}');
           } catch (error) {
             return {};
           }
         }
 
         function openQuickLink(link) {
-          try {
-            const usage = readQuickLinkUsage();
-            usage[link.id] = Date.now();
-            localStorage.setItem('quick-links-last-used-v1', JSON.stringify(usage));
-          } catch (error) {
-            console.warn('Failed to save Quick Link usage', error);
-          }
+          const usage = readQuickLinkUsage();
+          usage[link.id] = Date.now();
+          localStorage.setItem('quick-links-last-used-v1', JSON.stringify(usage));
           openExternal(link.link);
+        }
+
+        function goToQuickLinksJumpPage() {
+          if (!state.quickLinks.jumpToPage) return;
+          quickLinksPager.goto(Number(state.quickLinks.jumpToPage));
+          state.quickLinks.jumpToPage = '';
         }
 
         async function loadQuickLinkFavorites() {
@@ -1981,19 +2236,13 @@
         async function toggleQuickLinkFavorite(link) {
           const previousValue = link.isFavorite;
           link.isFavorite = !previousValue;
-          state.quickLinks.favoriteIds = state.quickLinks.list
-            .filter(item => item.isFavorite)
-            .map(item => item.id);
 
           try {
             const result = await gasCall('toggleQuickLinkFavorite', link.id);
             if (!result?.success) throw new Error(result?.error || 'Failed to update favorite');
-            state.quickLinks.favoriteIds = result.favoriteIds || state.quickLinks.favoriteIds;
+            state.quickLinks.favoriteIds = result.favoriteIds || [];
           } catch (error) {
             link.isFavorite = previousValue;
-            state.quickLinks.favoriteIds = state.quickLinks.list
-              .filter(item => item.isFavorite)
-              .map(item => item.id);
             showToast(error.message || 'Failed to update favorite', 'error');
           }
         }
@@ -2528,6 +2777,10 @@
         
         // ==================== LIFECYCLE ====================
         onMounted(() => {
+          loadUserPreferences();
+          loadNotifications();
+          loadSupportStats();
+          updateTime();
           loadAppConfig();
           loadThemePreference();
           loadAnimationPreference();
@@ -2541,8 +2794,12 @@
             state.sidebarCollapsed = savedSidebar === 'true';
           }
           
-          // Start authentication
-          authenticate();
+          // Show a login prompt after explicit logout; otherwise verify the active Google account.
+          if (sessionStorage.getItem('app-logged-out') === 'true') {
+            state.authStatus = 'LOGIN';
+          } else {
+            authenticate();
+          }
         });
         
         // Watch for settings tab changes
@@ -2551,7 +2808,7 @@
             loadUsers();
           }
         });
-        
+
         // ==================== RETURN ====================
         return {
           state,
@@ -2559,6 +2816,18 @@
           animationsDisabled,
           currentTime,
           currentDate,
+          currentTimezoneOffset,
+          analyticsSummary,
+          analyticsMonths,
+          analyticsDays,
+          analyticsYears,
+          timezoneOptions,
+          unreadNotificationCount,
+          refreshDashboard,
+          markNotificationsRead,
+          setTimezone,
+          t,
+          loadSupportStats,
           availableThemes,
           quickLinksCategories,
           filteredQuickLinks,
@@ -2587,11 +2856,12 @@
           setSettingsTab,
           navigateTo,
           toggleSidebar,
+          login,
+          logout,
           submitSetup,
           getIconSvg,
           openExternal,
-          openQuickLink,
-
+          
           // Users
           loadUsers,
           openUserModal,
@@ -2601,8 +2871,13 @@
           
           // Quick Links
           loadQuickLinks,
+          openQuickLink,
           loadQuickLinkFavorites,
           toggleQuickLinkFavorite,
+
+          // Help and Support
+          submitSupportRequest,
+          resetSupportForm,
           openQuickLinkModal,
           closeQuickLinkModal,
           onQuickLinkCategoryChange,

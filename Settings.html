@@ -9,8 +9,8 @@
         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
       <div>
-        <h1 class="text-2xl font-bold">Settings</h1>
-        <p class="text-base-content/60 text-sm">Configure your preferences</p>
+        <h1 class="text-2xl font-bold">{{ t('Settings') }}</h1>
+        <p class="text-base-content/60 text-sm">{{ t('Configure your preferences') }}</p>
       </div>
     </div>
   </div>
@@ -26,7 +26,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
-      General
+      {{ t('General') }}
     </a>
     <a 
       v-if="state.isAdmin"
@@ -37,7 +37,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
       </svg>
-      Users
+      {{ t('Users') }}
     </a>
     <a 
       v-if="state.isAdmin"
@@ -48,7 +48,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
         <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
       </svg>
-      Database
+      {{ t('Database') }}
     </a>
   </div>
 
@@ -65,10 +65,10 @@
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4.098 19.902a3.75 3.75 0 005.304 0l6.401-6.402M6.75 21A3.75 3.75 0 013 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 003.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008z" />
           </svg>
-          Theme
+          {{ t('Theme') }}
         </div>
         <div class="collapse-content px-3 pb-3">
-          <p class="text-sm text-base-content/60 mb-3">Choose a color theme for the app</p>
+          <p class="text-sm text-base-content/60 mb-3">{{ t('Choose a color theme for the app') }}</p>
           <!-- Theme Picker Grid (Mobile) -->
           <div class="grid grid-cols-1 xs:grid-cols-2 gap-2">
             <button
@@ -113,10 +113,10 @@
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
           </svg>
-          Animations
+          {{ t('Animations') }}
         </div>
         <div class="collapse-content px-3 pb-3">
-          <p class="text-sm text-base-content/60 mb-3">Control animation intensity</p>
+          <p class="text-sm text-base-content/60 mb-3">{{ t('Control animation intensity') }}</p>
           <!-- Animation Options (Mobile - Compact) -->
           <div class="flex flex-col gap-2">
             <button
@@ -128,7 +128,7 @@
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Subtle
+              {{ t('Subtle') }}
             </button>
             <button
               type="button"
@@ -139,7 +139,7 @@
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
               </svg>
-              Engaging
+              {{ t('Engaging') }}
             </button>
             <button
               type="button"
@@ -150,11 +150,11 @@
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
               </svg>
-              Disabled
+              {{ t('Disabled') }}
             </button>
           </div>
           <p class="text-xs text-base-content/50 mt-2">
-            Disable animations for better performance on slower devices
+            {{ t('Disable animations for better performance on slower devices') }}
           </p>
         </div>
       </div>
@@ -168,9 +168,9 @@
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4.098 19.902a3.75 3.75 0 005.304 0l6.401-6.402M6.75 21A3.75 3.75 0 013 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 003.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008z" />
           </svg>
-          Theme
+          {{ t('Theme') }}
         </h2>
-        <p class="text-sm text-base-content/60 mb-4">Choose a color theme for the app</p>
+        <p class="text-sm text-base-content/60 mb-4">{{ t('Choose a color theme for the app') }}</p>
         
         <!-- Theme Picker (theme cards) -->
         <div class="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
@@ -217,9 +217,9 @@
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
           </svg>
-          Animations
+          {{ t('Animations') }}
         </h2>
-        <p class="text-sm text-base-content/60 mb-4">Control animation intensity throughout the app</p>
+        <p class="text-sm text-base-content/60 mb-4">{{ t('Control animation intensity throughout the app') }}</p>
         
         <!-- Animation Intensity Options -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -233,8 +233,8 @@
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 mx-auto mb-2 text-primary/60">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h3 class="font-semibold">Subtle</h3>
-              <p class="text-xs text-base-content/60">Quick, minimal animations</p>
+              <h3 class="font-semibold">{{ t('Subtle') }}</h3>
+              <p class="text-xs text-base-content/60">{{ t('Quick, minimal animations') }}</p>
             </div>
           </div>
           
@@ -248,8 +248,8 @@
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 mx-auto mb-2 text-primary">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
               </svg>
-              <h3 class="font-semibold">Engaging</h3>
-              <p class="text-xs text-base-content/60">Full, smooth animations</p>
+              <h3 class="font-semibold">{{ t('Engaging') }}</h3>
+              <p class="text-xs text-base-content/60">{{ t('Full, smooth animations') }}</p>
             </div>
           </div>
           
@@ -263,8 +263,8 @@
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 mx-auto mb-2 text-base-content/40">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
               </svg>
-              <h3 class="font-semibold">Disabled</h3>
-              <p class="text-xs text-base-content/60">No animations</p>
+              <h3 class="font-semibold">{{ t('Disabled') }}</h3>
+              <p class="text-xs text-base-content/60">{{ t('No animations') }}</p>
             </div>
           </div>
         </div>
@@ -273,11 +273,11 @@
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline mr-1">
             <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
           </svg>
-          Disable animations for better performance on slower devices
+          {{ t('Disable animations for better performance on slower devices') }}
         </p>
       </div>
     </div>
-    
+
   </div>
   <!-- USERS TAB (Admin Only) -->
   <div v-show="state.settings.activeTab === 'users' && state.isAdmin" class="space-y-6">
@@ -290,7 +290,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
             </svg>
-            User Management
+            {{ t('User Management') }}
           </h2>
           <div class="flex items-center gap-2">
             <button
@@ -358,7 +358,7 @@
                         :disabled="user.email === state.user.email || state.users.deletingRowIndex === (user.rowIndex || user.id) || state.confirm.busy"
                       >
                         <span v-if="state.users.deletingRowIndex === (user.rowIndex || user.id)" class="loading loading-spinner loading-xs mr-1"></span>
-                        {{ state.users.deletingRowIndex === (user.rowIndex || user.id) ? 'Deleting...' : 'Delete' }}
+                        {{ state.users.deletingRowIndex === (user.rowIndex || user.id) ? t('Deleting...') : t('Delete') }}
                       </button>
                     </div>
                   </td>
@@ -400,8 +400,8 @@
               </svg>
             </div>
             <div>
-              <h2 class="text-lg font-bold">Main Database</h2>
-              <p class="text-sm text-base-content/60">Stores users, audit logs, and quick links</p>
+              <h2 class="text-lg font-bold">{{ t('Main Database') }}</h2>
+              <p class="text-sm text-base-content/60">{{ t('Stores users, audit logs, and quick links') }}</p>
             </div>
           </div>
           <!-- Status Badge -->
@@ -414,7 +414,7 @@
               <path v-if="state.dbConfig.mainDbStatus === 'connected'" stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               <path v-else stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
-            {{ state.dbConfig.mainDbStatus === 'connected' ? 'Connected' : 'Error' }}
+            {{ state.dbConfig.mainDbStatus === 'connected' ? t('Connected') : t('Error') }}
           </span>
         </div>
 
@@ -428,7 +428,7 @@
           <div v-else key="content">
           <div class="mb-4">
             <label class="label">
-              <span class="font-medium">Spreadsheet URL or ID</span>
+              <span class="font-medium">{{ t('Spreadsheet URL or ID') }}</span>
             </label>
             <div class="flex flex-wrap gap-2 items-center">
               <input 
@@ -462,7 +462,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span v-else class="loading loading-spinner loading-sm"></span>
-                {{ state.dbConfig.verifying ? 'Verifying...' : 'Verify' }}
+                {{ state.dbConfig.verifying ? t('Verifying...') : t('Verify') }}
               </button>
 
               <button 
@@ -474,12 +474,12 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 3.75H6.912a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859M12 3v8.25m0 0l-3-3m3 3l3-3" />
                 </svg>
                 <span v-else class="loading loading-spinner loading-sm"></span>
-                {{ state.dbConfig.saving ? 'Saving...' : 'Save' }}
+                {{ state.dbConfig.saving ? t('Saving...') : t('Save') }}
               </button>
             </div>
             <label class="label">
               <span class="text-xs text-base-content/50">
-                Required sheets: USERS, AUDIT LOGS, QUICK LINKS
+                {{ t('Required sheets: USERS, AUDIT LOGS, QUICK LINKS') }}
               </span>
             </label>
           </div>

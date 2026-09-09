@@ -347,8 +347,8 @@ function createMissingSheets() {
         // Create QUICK LINKS sheet if missing
         if (!ss.getSheetByName('QUICK LINKS')) {
             const sheet = ss.insertSheet('QUICK LINKS');
-            sheet.appendRow(['ID', 'Name', 'Link', 'Category', 'Icon']);
-            sheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#f0f0f0');
+            sheet.appendRow(['Name', 'Link', 'Category', 'Icon']);
+            sheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#f0f0f0');
             sheet.setFrozenRows(1);
             createdSheets.push('QUICK LINKS');
         }

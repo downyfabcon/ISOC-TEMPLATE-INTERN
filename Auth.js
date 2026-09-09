@@ -25,9 +25,20 @@ function getCurrentUserInfo() {
  * This is the main authentication entry point called on app load
  * @returns {Object} Authentication result object
  */
-function authenticate() {
+function authenticate(loginEmail) {
     const email = getCurrentUserEmail();
     const mainDbId = getMainDbId();
+
+    const requestedEmail = String(loginEmail || '').trim().toLowerCase();
+    const activeEmail = String(email || '').trim().toLowerCase();
+
+    if (requestedEmail && requestedEmail !== activeEmail) {
+        return {
+            status: 'ACCESS_DENIED',
+            email: email,
+            message: 'Use the Google account that matches the email approved by your administrator.'
+        };
+    }
 
     // Check if Main DB is configured
     if (!mainDbId) {
@@ -108,10 +119,11 @@ function findUserInSheet(sheet, email) {
         const rowEmail = data[i][0] ? data[i][0].toString().trim().toLowerCase() : '';
 
         if (rowEmail === email.toLowerCase()) {
+            const storedRole = String(data[i][2] || '').trim().toLowerCase();
             return {
                 email: data[i][0],
                 name: data[i][1] || '',
-                role: data[i][2] || 'user',
+                role: storedRole === 'admin' ? 'admin' : 'user',
                 rowIndex: i + 1
             };
         }
@@ -200,8 +212,8 @@ function performInitialSetup(setupData) {
         let quickLinksSheet = ss.getSheetByName('QUICK LINKS');
         if (!quickLinksSheet) {
             quickLinksSheet = ss.insertSheet('QUICK LINKS');
-            quickLinksSheet.appendRow(['ID', 'Name', 'Link', 'Category', 'Icon']);
-            quickLinksSheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#f0f0f0');
+            quickLinksSheet.appendRow(['Name', 'Link', 'Category', 'Icon']);
+            quickLinksSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#f0f0f0');
             quickLinksSheet.setFrozenRows(1);
         }
 
@@ -232,4 +244,12 @@ function isCurrentUserAdmin() {
     const email = getCurrentUserEmail();
     const user = findUserByEmail(email);
     return user && user.role === 'admin';
+}
+
+/**
+ * Checks whether the active Google account is registered in the USERS sheet.
+ * @returns {boolean} True when the account has access to the web app.
+ */
+function isCurrentUserAuthorized() {
+    return !!getCurrentUserInfo();
 }

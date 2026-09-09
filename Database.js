@@ -39,7 +39,7 @@ function getUsers() {
                     id: i + 1, // Row number as ID
                     email: row[0] || '',
                     name: row[1] || '',
-                    role: row[2] || 'user'
+                    role: String(row[2] || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user'
                 });
             }
         }
@@ -103,8 +103,7 @@ function createUser(userData) {
         }
 
         // Validate role
-        const validRoles = ['admin', 'user'];
-        const role = validRoles.includes(userData.role) ? userData.role : 'user';
+        const role = String(userData.role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
 
         // Add new user
         const lastRow = sheet.getLastRow();
@@ -206,8 +205,7 @@ function updateUser(userData) {
         }
 
         // Validate role
-        const validRoles = ['admin', 'user'];
-        const role = validRoles.includes(userData.role) ? userData.role : 'user';
+        const role = String(userData.role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
 
         // Capture old values for audit
         const oldValues = {
