@@ -1001,7 +1001,8 @@
         const analyticsSummary = computed(() => ({
           total: state.usage.linkClicks.filter(item => isAnalyticsDateSelected(item.date)).reduce((total, item) => total + item.count, 0),
           support: state.support.stats.total,
-          active: state.users.list.length || (state.user.email ? 1 : 0)
+          active: state.users.list.length || (state.user.email ? 1 : 0),
+          quickLinks: state.quickLinks.list.length
         }));
         
         // ==================== TOAST SYSTEM ====================

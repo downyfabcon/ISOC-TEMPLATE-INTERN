@@ -111,6 +111,19 @@ function createUser(userData) {
             [userData.email.trim(), userData.name.trim(), role]
         ]);
 
+        let sharingWarning = '';
+        try {
+            const databaseFile = DriveApp.getFileById(mainDbId);
+            if (role === 'admin') {
+                databaseFile.addEditor(userData.email.trim());
+            } else {
+                databaseFile.addViewer(userData.email.trim());
+            }
+        } catch (sharingError) {
+            sharingWarning = ' User was created, but database sharing failed. Share the Main Database with ' + userData.email.trim() + ' as ' + (role === 'admin' ? 'Editor' : 'Viewer') + '.';
+            Logger.log('Failed to share database with new user: ' + sharingError.message);
+        }
+
         // Update cache version
         updateDataVersion();
 
@@ -129,7 +142,7 @@ function createUser(userData) {
 
         return {
             success: true,
-            message: 'User created successfully',
+            message: 'User created successfully.' + sharingWarning,
             user: {
                 id: lastRow + 1,
                 email: userData.email.trim(),

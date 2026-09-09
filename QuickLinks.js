@@ -207,6 +207,10 @@ function getQuickLinks() {
  * @returns {Object} { success: boolean, error: string }
  */
 function createQuickLink(data) {
+    if (!isCurrentUserAdmin()) {
+        return { success: false, error: 'Access denied. Admin privileges required.' };
+    }
+
     const lock = LockService.getScriptLock();
 
     try {
@@ -303,6 +307,10 @@ function createQuickLink(data) {
  * @returns {Object} { success: boolean, error: string }
  */
 function updateQuickLink(data) {
+    if (!isCurrentUserAdmin()) {
+        return { success: false, error: 'Access denied. Admin privileges required.' };
+    }
+
     const lock = LockService.getScriptLock();
 
     try {
@@ -406,6 +414,10 @@ function updateQuickLink(data) {
  * @returns {Object} { success: boolean, error: string }
  */
 function deleteQuickLink(rowIndex) {
+    if (!isCurrentUserAdmin()) {
+        return { success: false, error: 'Access denied. Admin privileges required.' };
+    }
+
     const lock = LockService.getScriptLock();
 
     try {
