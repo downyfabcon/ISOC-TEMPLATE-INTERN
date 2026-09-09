@@ -815,6 +815,13 @@
             error: null,
             searchQuery: '',
             filterCategory: '',
+            filterFavorites: false,
+            favoriteIds: [],
+            sortMode: 'recent',
+            displayMode: 'pages',
+            currentPage: 1,
+            pageSize: 25,
+            jumpToPage: '',
             iconSearch: '',
             iconDropdownOpen: false,
             modalOpen: false,
@@ -832,7 +839,7 @@
             },
             formErrors: {}
           },
-          
+
           // Audit Log
           auditLog: {
             list: [],
@@ -1571,9 +1578,11 @@
                 const rawItems = result.items || [];
                 state.quickLinks.list = rawItems.map(item => ({
                   ...item,
-                  icon: item.icon || item.iconKey || ''
+                  icon: item.icon || item.iconKey || '',
+                  isFavorite: state.quickLinks.favoriteIds.includes(item.id)
                 }));
               }
+              loadQuickLinkFavorites();
               dataLoaded.quickLinks = true;
               checkAllDataLoaded();
             })
@@ -1837,17 +1846,111 @@
         });
         
         const filteredQuickLinks = computed(() => {
-          return state.quickLinks.list.filter(link => {
+          const filtered = state.quickLinks.list.filter(link => {
             const matchesSearch = !state.quickLinks.searchQuery || 
               link.name.toLowerCase().includes(state.quickLinks.searchQuery.toLowerCase()) ||
               link.link.toLowerCase().includes(state.quickLinks.searchQuery.toLowerCase());
             
-            const matchesCategory = !state.quickLinks.filterCategory || 
-              link.category === state.quickLinks.filterCategory;
+            const matchesCategory = !state.quickLinks.filterCategory ||
+              (state.quickLinks.filterCategory === '__favorites__'
+                ? link.isFavorite
+                : link.category === state.quickLinks.filterCategory);
+
+            const matchesFavorites = !state.quickLinks.filterFavorites || link.isFavorite;
             
-            return matchesSearch && matchesCategory;
+            return matchesSearch && matchesCategory && matchesFavorites;
+          });
+
+          const usage = readQuickLinkUsage();
+          return filtered.slice().sort((first, second) => {
+            if (state.quickLinks.sortMode === 'nameAsc') {
+              return first.name.localeCompare(second.name);
+            }
+            if (state.quickLinks.sortMode === 'nameDesc') {
+              return second.name.localeCompare(first.name);
+            }
+            if (state.quickLinks.sortMode === 'category') {
+              const firstCategory = (first.category || 'Uncategorized').trim();
+              const secondCategory = (second.category || 'Uncategorized').trim();
+              return firstCategory.localeCompare(secondCategory, undefined, { sensitivity: 'base' }) ||
+                first.name.localeCompare(second.name, undefined, { sensitivity: 'base' });
+            }
+            return (usage[second.id] || 0) - (usage[first.id] || 0);
           });
         });
+
+        const quickLinksPager = createPager({
+          getTotalItems: () => filteredQuickLinks.value.length,
+          getPageSize: () => state.quickLinks.pageSize,
+          setPageSize: value => { state.quickLinks.pageSize = value; },
+          getCurrentPage: () => state.quickLinks.currentPage,
+          setCurrentPage: value => { state.quickLinks.currentPage = value; }
+        });
+
+        const pagedQuickLinks = computed(() => {
+          if (state.quickLinks.displayMode === 'all') return filteredQuickLinks.value;
+          const start = (state.quickLinks.currentPage - 1) * state.quickLinks.pageSize;
+          return filteredQuickLinks.value.slice(start, start + state.quickLinks.pageSize);
+        });
+
+        function goToQuickLinksJumpPage() {
+          if (!state.quickLinks.jumpToPage) return;
+          quickLinksPager.goto(Number(state.quickLinks.jumpToPage));
+          state.quickLinks.jumpToPage = '';
+        }
+
+        watch(
+          () => [
+            state.quickLinks.searchQuery,
+            state.quickLinks.filterCategory,
+            state.quickLinks.filterFavorites,
+            state.quickLinks.sortMode,
+            state.quickLinks.displayMode
+          ],
+          () => {
+            state.quickLinks.currentPage = 1;
+          }
+        );
+
+        watch(
+          () => [filteredQuickLinks.value.length, state.quickLinks.pageSize],
+          () => quickLinksPager.clampCurrent()
+        );
+
+        function readQuickLinkUsage() {
+          try {
+            const saved = localStorage.getItem('quick-links-last-used-v1');
+            const usage = saved ? JSON.parse(saved) : {};
+            return usage && typeof usage === 'object' ? usage : {};
+          } catch (error) {
+            return {};
+          }
+        }
+
+        function openQuickLink(link) {
+          try {
+            const usage = readQuickLinkUsage();
+            usage[link.id] = Date.now();
+            localStorage.setItem('quick-links-last-used-v1', JSON.stringify(usage));
+          } catch (error) {
+            console.warn('Failed to save Quick Link usage', error);
+          }
+          openExternal(link.link);
+        }
+
+        async function loadQuickLinkFavorites() {
+          try {
+            const result = await gasCall('getQuickLinkFavorites');
+            if (result?.success) {
+              state.quickLinks.favoriteIds = result.favoriteIds || [];
+              state.quickLinks.list.forEach(link => {
+                link.isFavorite = state.quickLinks.favoriteIds.includes(link.id);
+              });
+            }
+          } catch (error) {
+            state.quickLinks.favoriteIds = [];
+          }
+        }
         
         function loadQuickLinks() {
           state.quickLinks.loading = true;
@@ -1860,8 +1963,10 @@
                 const rawItems = result.items || [];
                 state.quickLinks.list = rawItems.map(item => ({
                   ...item,
-                  icon: item.icon || item.iconKey || ''
+                  icon: item.icon || item.iconKey || '',
+                  isFavorite: state.quickLinks.favoriteIds.includes(item.id)
                 }));
+                loadQuickLinkFavorites();
               } else {
                 state.quickLinks.error = result.message || result.error || 'Failed to load quick links';
               }
@@ -1871,6 +1976,26 @@
               state.quickLinks.error = error.message || 'Failed to load quick links';
             })
             .getQuickLinks();
+        }
+
+        async function toggleQuickLinkFavorite(link) {
+          const previousValue = link.isFavorite;
+          link.isFavorite = !previousValue;
+          state.quickLinks.favoriteIds = state.quickLinks.list
+            .filter(item => item.isFavorite)
+            .map(item => item.id);
+
+          try {
+            const result = await gasCall('toggleQuickLinkFavorite', link.id);
+            if (!result?.success) throw new Error(result?.error || 'Failed to update favorite');
+            state.quickLinks.favoriteIds = result.favoriteIds || state.quickLinks.favoriteIds;
+          } catch (error) {
+            link.isFavorite = previousValue;
+            state.quickLinks.favoriteIds = state.quickLinks.list
+              .filter(item => item.isFavorite)
+              .map(item => item.id);
+            showToast(error.message || 'Failed to update favorite', 'error');
+          }
         }
         
         function openQuickLinkModal(link = null) {
@@ -2437,6 +2562,9 @@
           availableThemes,
           quickLinksCategories,
           filteredQuickLinks,
+          pagedQuickLinks,
+          quickLinksPager,
+          goToQuickLinksJumpPage,
           filteredQuickLinkIconOptions,
           iconPickerDropdownStyle,
           filteredAuditLogsAll,
@@ -2462,7 +2590,8 @@
           submitSetup,
           getIconSvg,
           openExternal,
-          
+          openQuickLink,
+
           // Users
           loadUsers,
           openUserModal,
@@ -2472,6 +2601,8 @@
           
           // Quick Links
           loadQuickLinks,
+          loadQuickLinkFavorites,
+          toggleQuickLinkFavorite,
           openQuickLinkModal,
           closeQuickLinkModal,
           onQuickLinkCategoryChange,

@@ -26,7 +26,6 @@
         Refresh
       </button>
       <button 
-        v-if="state.isAdmin"
         class="btn btn-primary gap-2"
         @click="openQuickLinkModal()"
       >
@@ -41,7 +40,7 @@
   <!-- Search and Filter Bar -->
   <div class="flex flex-col sm:flex-row gap-3 mb-6">
     <!-- Search -->
-    <div class="flex-1">
+    <div class="min-w-0 flex-1">
       <div class="relative">
         <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-base-content/50">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
@@ -58,15 +57,92 @@
     </div>
     
     <!-- Category Filter -->
-    <select 
-      v-model="state.quickLinks.filterCategory"
-      class="select w-full sm:w-48"
-    >
-      <option value="">All Categories</option>
-      <option v-for="category in quickLinksCategories" :key="category" :value="category">
-        {{ category }}
-      </option>
-    </select>
+    <div class="dropdown dropdown-end shrink-0">
+      <button
+        tabindex="0"
+        class="btn btn-outline h-10 min-h-10 gap-1 whitespace-nowrap"
+        title="Filter by category"
+        aria-label="Filter by category"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h18l-7.5 8.25v5.25l-3 1.5v-6.75L3 4.5z" />
+        </svg>
+        <span>Category</span>
+      </button>
+      <ul tabindex="0" class="dropdown-content menu z-20 mt-2 w-52 rounded-box bg-base-200 p-2 shadow">
+        <li>
+          <button @click="state.quickLinks.filterCategory = ''" :class="{ 'active': !state.quickLinks.filterCategory }">
+            All Categories
+          </button>
+        </li>
+        <li>
+          <button @click="state.quickLinks.filterCategory = '__favorites__'" :class="{ 'active': state.quickLinks.filterCategory === '__favorites__' }">
+            Favorites
+          </button>
+        </li>
+        <li v-for="category in quickLinksCategories" :key="category">
+          <button @click="state.quickLinks.filterCategory = category" :class="{ 'active': state.quickLinks.filterCategory === category }">
+            {{ category }}
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <div class="dropdown dropdown-end shrink-0">
+      <button
+        tabindex="0"
+        class="btn btn-outline btn-square h-10 min-h-10"
+        title="Sort links"
+        aria-label="Sort links"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M6 12h12m-9 6h6" />
+        </svg>
+      </button>
+      <ul tabindex="0" class="dropdown-content menu z-20 mt-2 w-52 rounded-box bg-base-200 p-2 shadow">
+        <li>
+          <button @click="state.quickLinks.sortMode = 'recent'" :class="{ 'active': state.quickLinks.sortMode === 'recent' }">
+            Recently Used
+          </button>
+        </li>
+        <li>
+          <button @click="state.quickLinks.sortMode = 'nameAsc'" :class="{ 'active': state.quickLinks.sortMode === 'nameAsc' }">
+            Alphabetical A-Z
+          </button>
+        </li>
+        <li>
+          <button @click="state.quickLinks.sortMode = 'nameDesc'" :class="{ 'active': state.quickLinks.sortMode === 'nameDesc' }">
+            Alphabetical Z-A
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <div class="join">
+      <button
+        class="join-item btn btn-outline btn-square"
+        :class="{ 'btn-primary': state.quickLinks.displayMode === 'pages' }"
+        @click="state.quickLinks.displayMode = 'pages'"
+        title="Pages"
+        aria-label="Pages"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75h6.5v6.5h-6.5v-6.5zm10 0h6.5v6.5h-6.5v-6.5zm-10 10h6.5v6.5h-6.5v-6.5zm10 0h6.5v6.5h-6.5v-6.5z" />
+        </svg>
+      </button>
+      <button
+        class="join-item btn btn-outline btn-square"
+        :class="{ 'btn-primary': state.quickLinks.displayMode === 'all' }"
+        @click="state.quickLinks.displayMode = 'all'"
+        title="Show All"
+        aria-label="Show All"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 5.25h16.5M3.75 12h16.5M3.75 18.75h16.5" />
+        </svg>
+      </button>
+    </div>
+
   </div>
 
   <transition name="view-swap" mode="out-in">
@@ -90,15 +166,15 @@
         <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
       </svg>
       <h3 class="text-lg font-semibold mb-2">
-        {{ state.quickLinks.searchQuery || state.quickLinks.filterCategory ? 'No matching links' : 'No Quick Links yet' }}
+        {{ state.quickLinks.searchQuery || state.quickLinks.filterCategory || state.quickLinks.filterFavorites ? 'No matching links' : 'No Quick Links yet' }}
       </h3>
       <p class="text-base-content/60 mb-4">
-        {{ state.quickLinks.searchQuery || state.quickLinks.filterCategory 
+        {{ state.quickLinks.searchQuery || state.quickLinks.filterCategory || state.quickLinks.filterFavorites
           ? 'Try adjusting your search or filter criteria' 
           : 'Add your first quick link to get started!' }}
       </p>
       <button 
-        v-if="state.isAdmin && !state.quickLinks.searchQuery && !state.quickLinks.filterCategory"
+        v-if="state.isAdmin && !state.quickLinks.searchQuery && !state.quickLinks.filterCategory && !state.quickLinks.filterFavorites"
         class="btn btn-primary"
         @click="openQuickLinkModal()"
       >
@@ -110,12 +186,13 @@
     </div>
 
     <!-- Quick Links Grid -->
-    <div v-else key="content" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div v-else key="content">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
       <div 
-        v-for="link in filteredQuickLinks" 
+        v-for="link in pagedQuickLinks"
         :key="link.rowIndex"
         class="card bg-base-200 shadow transition-shadow sm:hover:shadow-lg sm:hover:scale-[1.02] cursor-pointer group"
-        @click="openExternal(link.link)"
+        @click="openQuickLink(link)"
       >
         <div class="card-body p-4">
           <div class="flex items-start justify-between gap-2">
@@ -130,6 +207,18 @@
                 <p class="text-xs text-base-content/50 truncate">{{ link.category || 'Uncategorized' }}</p>
               </div>
             </div>
+
+            <!-- Favorite Button -->
+            <button
+              class="btn btn-ghost btn-sm md:btn-xs btn-square"
+              @click.stop="toggleQuickLinkFavorite(link)"
+              :title="link.isFavorite ? 'Remove from Favorites' : 'Add to Favorites'"
+              :aria-label="link.isFavorite ? 'Remove from Favorites' : 'Add to Favorites'"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" :fill="link.isFavorite ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4" :class="link.isFavorite ? 'text-warning' : ''">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.562.562 0 00.475.347l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.562.562 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.562.562 0 00-.586 0l-4.725 2.885a.562.562 0 01-.84-.61l1.285-5.385a.562.562 0 00-.182-.557L2.842 10.387c-.38-.325-.178-.948.321-.988l5.518-.442a.562.562 0 00.475-.347l2.125-5.111z" />
+              </svg>
+            </button>
             
             <!-- Edit Button (Admin Only) - Always visible -->
             <button 
@@ -153,7 +242,99 @@
           </div>
         </div>
       </div>
+      </div>
+
     </div>
   </transition>
+
+  <div
+    v-if="state.currentView === 'quicklinks' && state.quickLinks.displayMode === 'pages'"
+    class="sticky bottom-0 z-10 -mx-4 mt-6 flex flex-col gap-3 border-t border-base-300 bg-base-100/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:relative sm:flex-row sm:items-center sm:justify-between sm:px-6"
+  >
+    <div class="flex items-center gap-2 shrink-0 justify-center sm:justify-start">
+      <span class="text-sm text-base-content/70 whitespace-nowrap">Items per page</span>
+      <select
+        class="select select-sm"
+        :value="state.quickLinks.pageSize"
+        @change="quickLinksPager.setPageSize(Number($event.target.value))"
+        aria-label="Items per page"
+      >
+        <option :value="10">10</option>
+        <option :value="25">25</option>
+        <option :value="50">50</option>
+        <option :value="100">100</option>
+      </select>
+    </div>
+
+    <div class="join self-center sm:absolute sm:left-1/2 sm:-translate-x-1/2">
+      <button
+        class="join-item btn btn-sm hidden sm:flex"
+        :disabled="!quickLinksPager.canPrev"
+        @click="quickLinksPager.first()"
+        title="First page"
+        aria-label="First page"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5L11.25 12l7.5-7.5M12.75 19.5L5.25 12l7.5-7.5" />
+        </svg>
+      </button>
+      <button
+        class="join-item btn btn-sm"
+        :disabled="!quickLinksPager.canPrev"
+        @click="quickLinksPager.prev()"
+        title="Previous page"
+        aria-label="Previous page"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+      </button>
+      <button class="join-item btn btn-sm btn-ghost pointer-events-none text-xs sm:text-sm">
+        {{ state.quickLinks.currentPage }}/{{ quickLinksPager.totalPages }}
+      </button>
+      <button
+        class="join-item btn btn-sm"
+        :disabled="!quickLinksPager.canNext"
+        @click="quickLinksPager.next()"
+        title="Next page"
+        aria-label="Next page"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+      </button>
+      <button
+        class="join-item btn btn-sm hidden sm:flex"
+        :disabled="!quickLinksPager.canNext"
+        @click="quickLinksPager.last()"
+        title="Last page"
+        aria-label="Last page"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5M11.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="flex items-center gap-2 justify-end">
+      <span class="text-sm text-base-content/70 hidden sm:inline">Jump to</span>
+      <input
+        type="number"
+        min="1"
+        :max="quickLinksPager.totalPages"
+        v-model="state.quickLinks.jumpToPage"
+        class="input input-sm w-20"
+        placeholder="Page"
+        aria-label="Jump to page"
+      />
+      <button
+        class="btn btn-outline btn-sm"
+        @click="goToQuickLinksJumpPage"
+        :disabled="!state.quickLinks.jumpToPage"
+      >
+        Go
+      </button>
+    </div>
+  </div>
 
 </div>

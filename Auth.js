@@ -200,8 +200,8 @@ function performInitialSetup(setupData) {
         let quickLinksSheet = ss.getSheetByName('QUICK LINKS');
         if (!quickLinksSheet) {
             quickLinksSheet = ss.insertSheet('QUICK LINKS');
-            quickLinksSheet.appendRow(['Name', 'Link', 'Category', 'Icon']);
-            quickLinksSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#f0f0f0');
+            quickLinksSheet.appendRow(['ID', 'Name', 'Link', 'Category', 'Icon']);
+            quickLinksSheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#f0f0f0');
             quickLinksSheet.setFrozenRows(1);
         }
 

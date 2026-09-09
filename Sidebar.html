@@ -40,7 +40,7 @@
         
         <!-- Home -->
         <li class="sidebar-nav-item">
-          <a 
+          <a
             @click="navigateTo('home')"
             :class="{ 'active bg-primary/20 text-primary': state.currentView === 'home' }"
             class="sidebar-nav-link flex items-center rounded-lg gap-3 min-w-0"
@@ -52,7 +52,7 @@
             <span v-show="!state.sidebarCollapsed" class="whitespace-nowrap truncate">Home</span>
           </a>
         </li>
-        
+
         <!-- Quick Links -->
         <li class="sidebar-nav-item">
           <a 
@@ -98,7 +98,7 @@
             <span v-show="!state.sidebarCollapsed" class="whitespace-nowrap truncate">Audit Trail</span>
           </a>
         </li>
-        
+
       </ul>
     </nav>
     
