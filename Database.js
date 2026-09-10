@@ -362,3 +362,57 @@ function deleteUser(userId) {
         lock.releaseLock();
     }
 }
+
+/**
+ * Returns dashboard totals for the selected daily, monthly, or yearly period.
+ * Quick Links and users use their creation audit events; support requests use
+ * the timestamp stored in the SUPPORT REQUESTS sheet.
+ * @param {Object} filters - { period, year, month, day }
+ * @returns {Object} Dashboard totals.
+ */
+function getDashboardStats(filters) {
+    if (!isCurrentUserAuthorized()) {
+        return { success: false, error: 'Access denied.' };
+    }
+
+    try {
+        const selected = filters || {};
+        const period = ['daily', 'monthly', 'yearly'].indexOf(selected.period) !== -1 ? selected.period : 'monthly';
+        const year = Number(selected.year) || new Date().getFullYear();
+        const month = Number(selected.month) || new Date().getMonth() + 1;
+        const day = Number(selected.day) || new Date().getDate();
+        const inSelectedPeriod = value => {
+            const date = new Date(value);
+            if (isNaN(date.getTime()) || date.getFullYear() !== year) return false;
+            if (period === 'yearly') return true;
+            if (date.getMonth() + 1 !== month) return false;
+            return period !== 'daily' || date.getDate() === day;
+        };
+
+        const spreadsheet = SpreadsheetApp.openById(getMainDbId());
+        const auditSheet = spreadsheet.getSheetByName('AUDIT LOGS');
+        const supportSheet = spreadsheet.getSheetByName('SUPPORT REQUESTS');
+        const auditRows = auditSheet && auditSheet.getLastRow() > 1
+            ? auditSheet.getRange(2, 1, auditSheet.getLastRow() - 1, 5).getValues()
+            : [];
+        const supportRows = supportSheet && supportSheet.getLastRow() > 1
+            ? supportSheet.getRange(2, 1, supportSheet.getLastRow() - 1, 1).getValues()
+            : [];
+
+        const countAuditCreates = entityType => auditRows.filter(row => (
+            String(row[3] || '').toUpperCase() === 'CREATE' &&
+            String(row[4] || '').toUpperCase() === entityType &&
+            inSelectedPeriod(row[0])
+        )).length;
+
+        return {
+            success: true,
+            quickLinks: countAuditCreates('QUICK_LINK'),
+            activeUsers: countAuditCreates('USER'),
+            supportRequests: supportRows.filter(row => inSelectedPeriod(row[0])).length
+        };
+    } catch (error) {
+        Logger.log('Error loading dashboard statistics: ' + error.message);
+        return { success: false, error: 'Unable to load dashboard statistics: ' + error.message };
+    }
+}

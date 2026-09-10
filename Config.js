@@ -353,6 +353,22 @@ function createMissingSheets() {
             createdSheets.push('QUICK LINKS');
         }
 
+        if (!ss.getSheetByName('ANNOUNCEMENTS')) {
+            const sheet = ss.insertSheet('ANNOUNCEMENTS');
+            sheet.appendRow(['Title', 'Message', 'Audience', 'Type', 'Send At', 'Created At', 'Created By', 'Email Sent']);
+            sheet.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#f0f0f0');
+            sheet.setFrozenRows(1);
+            createdSheets.push('ANNOUNCEMENTS');
+        }
+
+        if (!ss.getSheetByName('KNOWLEDGE')) {
+            const sheet = ss.insertSheet('KNOWLEDGE');
+            sheet.appendRow(['Title', 'Category', 'Description', 'URL', 'Created At', 'Created By']);
+            sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#f0f0f0');
+            sheet.setFrozenRows(1);
+            createdSheets.push('KNOWLEDGE');
+        }
+
         if (createdSheets.length > 0) {
             return {
                 success: true,
