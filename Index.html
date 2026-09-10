@@ -597,6 +597,10 @@
           <!-- Quick Links View -->
           <?!= include('QuickLinksView'); ?>
 
+          <!-- Announcements and Knowledge Views -->
+          <?!= include('AnnouncementsView'); ?>
+          <?!= include('KnowledgeView'); ?>
+
           <!-- Help and Support View -->
           <?!= include('SupportView'); ?>
           
@@ -838,6 +842,11 @@
           },
 
           dashboardRefreshing: false,
+          dashboardStats: {
+            quickLinks: 0,
+            activeUsers: 0,
+            supportRequests: 0
+          },
           notifications: {
             open: false,
             list: []
@@ -914,6 +923,17 @@
               link: '',
               description: ''
             }
+          },
+
+          announcements: {
+            items: [], loading: false, saving: false, error: null,
+            form: { title: '', message: '', audience: 'ALL', recipient: '', type: 'announcement', sendAt: '', sendEmail: false }
+          },
+
+          knowledge: {
+            items: [], loading: false, saving: false, error: null, search: '',
+            file: null, uploadInputKey: 0,
+            form: { title: '', category: '', description: '', url: '' }
           },
           
           // Audit Log
@@ -999,10 +1019,16 @@
         });
 
         const analyticsSummary = computed(() => ({
+<<<<<<< HEAD
           total: state.usage.linkClicks.filter(item => isAnalyticsDateSelected(item.date)).reduce((total, item) => total + item.count, 0),
           support: state.support.stats.total,
           active: state.users.list.length || (state.user.email ? 1 : 0),
           quickLinks: state.quickLinks.list.length
+=======
+          quickLinks: state.dashboardStats.quickLinks,
+          support: state.dashboardStats.supportRequests,
+          active: state.dashboardStats.activeUsers
+>>>>>>> Yannie
         }));
         
         // ==================== TOAST SYSTEM ====================
@@ -1010,6 +1036,11 @@
         let toastId = 0;
 
         const unreadNotificationCount = computed(() => state.notifications.list.filter(item => !item.read).length);
+        const filteredKnowledgeItems = computed(() => {
+          const query = state.knowledge.search.toLowerCase();
+          if (!query) return state.knowledge.items;
+          return state.knowledge.items.filter(item => [item.title, item.category, item.description].join(' ').toLowerCase().includes(query));
+        });
         
         function showToast(message, type = 'info', duration = 4000) {
           const id = ++toastId;
@@ -1373,6 +1404,24 @@
             .getSupportRequestStats();
         }
 
+        async function loadDashboardStats() {
+          try {
+            const result = await gasCall('getDashboardStats', {
+              period: state.analytics.period,
+              year: state.analytics.year,
+              month: state.analytics.month,
+              day: state.analytics.day
+            });
+            if (result && result.success) {
+              state.dashboardStats.quickLinks = Number(result.quickLinks) || 0;
+              state.dashboardStats.activeUsers = Number(result.activeUsers) || 0;
+              state.dashboardStats.supportRequests = Number(result.supportRequests) || 0;
+            }
+          } catch (error) {
+            // Dashboard counts should not block the app.
+          }
+        }
+
         function loadUserPreferences() {
           const timezone = localStorage.getItem('app-timezone');
           if (timezone) state.settings.timezone = timezone;
@@ -1388,7 +1437,7 @@
         function refreshDashboard() {
           if (state.dashboardRefreshing) return;
           state.dashboardRefreshing = true;
-          const requests = [loadQuickLinks()];
+          const requests = [loadQuickLinks(), loadDashboardStats()];
           if (state.isAdmin) requests.push(loadUsers(), loadAuditLogs());
           Promise.all(requests.filter(Boolean)).finally(() => {
             state.dashboardRefreshing = false;
@@ -1642,11 +1691,120 @@
           // Load data for view if needed
           if (view === 'audit' && state.auditLog.list.length === 0) {
             loadAuditLogs();
+          } else if (view === 'announcements' && state.announcements.items.length === 0) {
+            loadAnnouncements();
+          } else if (view === 'knowledge' && state.knowledge.items.length === 0) {
+            loadKnowledge();
           } else if (view === 'settings') {
             if (state.settings.activeTab === 'users' && state.users.list.length === 0) {
               loadUsers();
             }
           }
+        }
+
+        async function loadAnnouncements() {
+          state.announcements.loading = true;
+          state.announcements.error = null;
+          try {
+            const result = await gasCall('getAnnouncements');
+            if (result && result.success) state.announcements.items = result.items || [];
+            else state.announcements.error = result?.error || 'Unable to load announcements.';
+          } catch (error) {
+            state.announcements.error = error.message || 'Unable to load announcements.';
+          } finally {
+            state.announcements.loading = false;
+          }
+        }
+
+        async function publishAnnouncement() {
+          const form = state.announcements.form;
+          state.announcements.saving = true;
+          state.announcements.error = null;
+          try {
+            const result = await gasCall('createAnnouncement', Object.assign({}, form, { audience: form.audience === 'custom' ? form.recipient : 'ALL' }));
+            if (!result || !result.success) throw new Error(result?.error || 'Unable to publish update.');
+            state.announcements.form = { title: '', message: '', audience: 'ALL', recipient: '', type: 'announcement', sendAt: '', sendEmail: false };
+            showToast(result.message || 'Announcement published.', 'success');
+            await loadAnnouncements();
+          } catch (error) {
+            state.announcements.error = error.message || 'Unable to publish update.';
+          } finally {
+            state.announcements.saving = false;
+          }
+        }
+
+        async function removeAnnouncement(item) {
+          if (!confirm('Delete this announcement?')) return;
+          const result = await gasCall('deleteAnnouncement', item.rowIndex);
+          if (result && result.success) {
+            showToast('Announcement deleted.', 'success');
+            await loadAnnouncements();
+          } else showToast(result?.error || 'Unable to delete announcement.', 'error');
+        }
+
+        async function loadKnowledge() {
+          state.knowledge.loading = true;
+          state.knowledge.error = null;
+          try {
+            const result = await gasCall('getKnowledgeItems');
+            if (result && result.success) state.knowledge.items = result.items || [];
+            else state.knowledge.error = result?.error || 'Unable to load knowledge resources.';
+          } catch (error) {
+            state.knowledge.error = error.message || 'Unable to load knowledge resources.';
+          } finally {
+            state.knowledge.loading = false;
+          }
+        }
+
+        async function addKnowledgeItem() {
+          state.knowledge.saving = true;
+          state.knowledge.error = null;
+          try {
+            const form = state.knowledge.form;
+            const upload = state.knowledge.file;
+            const payload = Object.assign({}, form);
+            if (upload) {
+              if (upload.size > 25 * 1024 * 1024) throw new Error('Please upload a file smaller than 25 MB.');
+              payload.upload = await readKnowledgeFile(upload);
+            }
+            const result = await gasCall('createKnowledgeItem', payload);
+            if (!result || !result.success) throw new Error(result?.error || 'Unable to add resource.');
+            state.knowledge.form = { title: '', category: '', description: '', url: '' };
+            state.knowledge.file = null;
+            state.knowledge.uploadInputKey += 1;
+            showToast('Knowledge resource added.', 'success');
+            await loadKnowledge();
+          } catch (error) {
+            state.knowledge.error = error.message || 'Unable to add resource.';
+          } finally {
+            state.knowledge.saving = false;
+          }
+        }
+
+        function readKnowledgeFile(file) {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const base64 = String(reader.result || '').split(',')[1];
+              if (!base64) reject(new Error('Unable to read the selected file.'));
+              else resolve({ name: file.name, mimeType: file.type, base64: base64 });
+            };
+            reader.onerror = () => reject(new Error('Unable to read the selected file.'));
+            reader.readAsDataURL(file);
+          });
+        }
+
+        function selectKnowledgeFile(event) {
+          state.knowledge.file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+        }
+
+        async function removeKnowledgeItem(item) {
+          if (!confirm('Delete this knowledge resource?')) return;
+          const result = await gasCall('deleteKnowledgeItem', item.rowIndex);
+          if (result && result.success) {
+            showToast('Knowledge resource deleted.', 'success');
+            await loadKnowledge();
+          } else showToast(result?.error || 'Unable to delete resource.', 'error');
         }
 
         function resetSupportForm() {
@@ -1961,6 +2119,7 @@
                   state.authMessage = 'Ready!';
                   setTimeout(() => {
                     state.isAuthenticated = true;
+                    loadDashboardStats();
                   }, 200);
                 }
               }, 30);
@@ -2810,6 +2969,13 @@
           }
         });
 
+        watch(
+          () => [state.analytics.period, state.analytics.year, state.analytics.month, state.analytics.day],
+          () => {
+            if (state.isAuthenticated) loadDashboardStats();
+          }
+        );
+
         // ==================== RETURN ====================
         return {
           state,
@@ -2829,6 +2995,8 @@
           setTimezone,
           t,
           loadSupportStats,
+          loadDashboardStats,
+          filteredKnowledgeItems,
           availableThemes,
           quickLinksCategories,
           filteredQuickLinks,
@@ -2856,6 +3024,13 @@
           setAnimationIntensity,
           setSettingsTab,
           navigateTo,
+          loadAnnouncements,
+          publishAnnouncement,
+          removeAnnouncement,
+          loadKnowledge,
+          addKnowledgeItem,
+          removeKnowledgeItem,
+          selectKnowledgeFile,
           toggleSidebar,
           login,
           logout,
